@@ -20,8 +20,8 @@ A Node.js command-line application to fetch, search, and read the latest news he
 Clone the repository and install dependencies:
 
 ```bash
-git clone <repository-url>
-cd my-first-project
+git clone https://github.com/Nsattori/google-news-cli.git
+cd google-news-cli
 npm install
 ```
 
