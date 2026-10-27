@@ -80,6 +80,10 @@ textarea{min-height:84px;resize:vertical}
 .ai{border-left:4px solid var(--tape);background:var(--bg);padding:12px;border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:6px}
 .ai td,.ai th{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .ai a{color:var(--accent)}
+/* El input de archivo cubre el botón (invisible) para que el toque llegue directo a él: algunos teléfonos ignoran inputs ocultos */
+.filebtn{position:relative;overflow:hidden;font-size:1rem}
+.filebtn input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:40px}
+.filehelp{font-size:.85rem;color:var(--muted)}
 .links{display:flex;flex-wrap:wrap;gap:8px}
 .links a{font-size:.9rem;padding:8px 12px;color:var(--accent);border-color:var(--line)}
 .price-box{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -171,8 +175,10 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       <div class="photo">
         <div class="thumb" id="phPrev">📦</div>
         <div class="grow" style="display:flex;flex-direction:column;gap:8px">
-          <label for="fPhoto" class="btn" style="flex-direction:row;color:var(--ink);font-size:1rem">Tomar o elegir foto</label>
-          <input id="fPhoto" type="file" accept="image/*" capture="environment" hidden>
+          <div class="row">
+            <span class="btn filebtn grow">Elegir de la galería<input id="fPhoto" type="file" accept="image/*" aria-label="Elegir foto de la galería"></span>
+            <span class="btn filebtn">Cámara<input id="fPhotoCam" type="file" accept="image/*" capture="environment" aria-label="Sacar foto con la cámara"></span>
+          </div>
           <span class="small muted">Saca la foto con la etiqueta o el código de barras visible.</span>
         </div>
       </div>
@@ -279,8 +285,9 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       </div>
       <label for="loteEstado">Estado si no se nota en la foto
         <select id="loteEstado"><option value="nuevo">Nuevo sellado / con caja</option><option value="abierto">Nuevo sin caja o sin sello</option><option value="usado">Probado (swatch) o poco uso</option><option value="detalle">Empaque dañado o por vencer</option></select></label>
-      <label for="lotePhotos" class="btn" style="flex-direction:row;color:var(--ink);font-size:1rem">Elegir fotos de la galería</label>
-      <input id="lotePhotos" type="file" accept="image/*" multiple hidden>
+      <span class="btn filebtn">Elegir fotos de la galería<input id="lotePhotos" type="file" accept="image/*" multiple aria-label="Elegir varias fotos de la galería"></span>
+      <p class="filehelp" id="loteChosen">Puedes marcar varias fotos a la vez en la galería.</p>
+      <p class="filehelp">¿No se abre la galería? Abre este enlace en Chrome o Safari (no dentro de la app de Claude), inicia sesión en claude.ai y vuelve a intentar.</p>
       <button type="button" class="primary" id="btnLote">Subir e identificar</button>
       <p class="small muted">Primero se identifica cada foto (unos segundos cada una). Después tocas "Investigar precios" y la app busca los precios en internet de todos, de a dos a la vez. Deja la pantalla abierta mientras trabaja: lo que termina queda guardado aunque la cierres.</p>
     </div>
@@ -587,11 +594,13 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       return await new Promise(res => c.toBlob(b => res(b || file), "image/jpeg", 0.82));
     } finally { URL.revokeObjectURL(url); }
   }
-  F("fPhoto").addEventListener("change", async (e) => {
+  const onPhoto = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     photoBlob = await shrink(f).catch(() => f);
     $("phPrev").outerHTML = `<img id="phPrev" alt="Foto del producto" src="${URL.createObjectURL(photoBlob)}">`;
-  });
+  };
+  F("fPhoto").addEventListener("change", onPhoto);
+  F("fPhotoCam").addEventListener("change", onPhoto);
 
   // ---------- Investigación en internet ----------
   // La IA busca en la web con el conector de búsqueda; los precios salen de anuncios reales, con enlace.
@@ -894,6 +903,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"marca + nombre del producto, cl
   function updateLoteBtn(){
     const k = $("lotePhotos").files?.length || 0;
     $("btnLote").textContent = k ? `Subir e identificar ${k} fotos` : "Subir e identificar";
+    $("loteChosen").textContent = k ? `${k} fotos elegidas.` : "Puedes marcar varias fotos a la vez en la galería.";
   }
   $("lotePhotos").addEventListener("change", updateLoteBtn);
 
