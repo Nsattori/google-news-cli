@@ -285,8 +285,13 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       </div>
       <label for="loteEstado">Estado si no se nota en la foto
         <select id="loteEstado"><option value="nuevo">Nuevo sellado / con caja</option><option value="abierto">Nuevo sin caja o sin sello</option><option value="usado">Probado (swatch) o poco uso</option><option value="detalle">Empaque dañado o por vencer</option></select></label>
-      <span class="btn filebtn">Elegir fotos de la galería<input id="lotePhotos" type="file" accept="image/*" multiple aria-label="Elegir varias fotos de la galería"></span>
-      <p class="filehelp" id="loteChosen">Puedes marcar varias fotos a la vez en la galería.</p>
+      <div class="row">
+        <span class="btn filebtn grow">Galería<input id="lotePhotos" type="file" accept="image/*" multiple aria-label="Elegir fotos de la galería"></span>
+        <span class="btn filebtn grow">Archivos (varias a la vez)<input id="loteFiles" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp" multiple aria-label="Elegir varias fotos desde Archivos"></span>
+      </div>
+      <div class="row"><p class="filehelp grow" id="loteChosen">Ninguna foto elegida todavía.</p><button type="button" id="loteClear" hidden>Quitar todas</button></div>
+      <div id="loteThumbs" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+      <p class="filehelp"><b>Para elegir muchas de una vez:</b> toca <b>Archivos</b>, entra a la carpeta de fotos (Cámara, DCIM o Recientes), <b>mantén presionada</b> la primera foto y luego toca las demás. Si tu galería solo deja una por vez, igual puedes ir eligiendo: cada foto se <b>suma</b> a la lista.</p>
       <p class="filehelp">¿No se abre la galería? Abre este enlace en Chrome o Safari (no dentro de la app de Claude), inicia sesión en claude.ai y vuelve a intentar.</p>
       <button type="button" class="primary" id="btnLote">Subir e identificar</button>
       <p class="small muted">Primero se identifica cada foto (unos segundos cada una). Después tocas "Investigar precios" y la app busca los precios en internet de todos, de a dos a la vez. Deja la pantalla abierta mientras trabaja: lo que termina queda guardado aunque la cierres.</p>
@@ -814,7 +819,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"marca + nombre del producto, cl
   }
 
   $("btnLote").onclick = async () => {
-    const files = [...($("lotePhotos").files || [])];
+    const files = loteQueue.slice();
     if (!files.length){ toast("Primero elige las fotos"); return; }
     if (!sampleApi){ toast("La IA no está disponible aquí. Abre la página desde claude.ai."); return; }
     const modo = document.querySelector('input[name="loteModo"]:checked')?.value || "uno";
@@ -859,7 +864,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"marca + nombre del producto, cl
         }finally{ done++; loteStatus(done, files.length, "Fotos"); }
       }, signal);
       toast(signal.aborted ? "Carga detenida" : `Listo: ${creados} productos agregados`);
-    } finally { endLote(); $("lotePhotos").value = ""; updateLoteBtn(); }
+    } finally { endLote(); loteQueue = []; updateLoteBtn(); }
   };
 
   async function investigarTodos(){
@@ -900,12 +905,27 @@ Responde SOLO con JSON: {"productos":[{"nombre":"marca + nombre del producto, cl
     $("btnInvAll").hidden = !c; $("pendInfo2").textContent = c ? `${c} sin precios investigados` : ""; $("btnLoteAll").textContent = c ? `Investigar precios de ${c} productos` : "Nada pendiente de investigar";
     $("btnLoteAll").disabled = !c || !!lote;
   }
-  function updateLoteBtn(){
-    const k = $("lotePhotos").files?.length || 0;
-    $("btnLote").textContent = k ? `Subir e identificar ${k} fotos` : "Subir e identificar";
-    $("loteChosen").textContent = k ? `${k} fotos elegidas.` : "Puedes marcar varias fotos a la vez en la galería.";
+  // Las fotos elegidas se acumulan: sirve aunque la galería deje elegir de una en una
+  let loteQueue = [];
+  const fileKey = (f) => f.name + "|" + f.size + "|" + f.lastModified;
+  function addToQueue(e){
+    const seen = new Set(loteQueue.map(fileKey));
+    for (const f of e.target.files || []) if (!seen.has(fileKey(f)) && (/^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name))){ loteQueue.push(f); seen.add(fileKey(f)); }
+    e.target.value = "";
+    updateLoteBtn();
   }
-  $("lotePhotos").addEventListener("change", updateLoteBtn);
+  function updateLoteBtn(){
+    const k = loteQueue.length;
+    $("btnLote").textContent = k ? `Subir e identificar ${k} fotos` : "Subir e identificar";
+    $("loteChosen").textContent = k ? `${k} fotos elegidas. Puedes seguir agregando.` : "Ninguna foto elegida todavía.";
+    $("loteClear").hidden = !k;
+    const box = $("loteThumbs"); box.innerHTML = "";
+    loteQueue.slice(-24).forEach(f => { const im = document.createElement("img"); im.alt = ""; im.style.cssText = "width:44px;height:44px;object-fit:cover;border-radius:6px"; im.src = URL.createObjectURL(f); im.onload = () => URL.revokeObjectURL(im.src); box.appendChild(im); });
+    if (k > 24){ const more = document.createElement("span"); more.className = "small muted"; more.textContent = `+${k - 24}`; more.style.alignSelf = "center"; box.prepend(more); }
+  }
+  $("lotePhotos").addEventListener("change", addToQueue);
+  $("loteFiles").addEventListener("change", addToQueue);
+  $("loteClear").onclick = () => { loteQueue = []; updateLoteBtn(); };
 
   // Dólar de hoy: busca el oficial del BCB y el de mercado (USDT)
   $("btnTc").onclick = async () => {
