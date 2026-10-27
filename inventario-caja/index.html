@@ -184,27 +184,32 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       <div class="ai" id="aiProgress" hidden></div>
       <div class="ai" id="aiBox" hidden></div>
 
-      <label for="fNombre">Producto<input id="fNombre" placeholder="Ej: Audífonos Bluetooth JBL Tune 510BT"></label>
+      <label for="fNombre">Producto<input id="fNombre" placeholder="Ej: Fenty Beauty Killawatt Highlighter"></label>
       <div class="grid2">
-        <label for="fMarca">Marca / modelo<input id="fMarca"></label>
+        <label for="fMarca">Marca / línea<input id="fMarca"></label>
         <label for="fCodigo">Código (UPC / ASIN)<input id="fCodigo" inputmode="numeric"></label>
       </div>
       <div class="grid2">
         <label for="fEstado">Estado
           <select id="fEstado">
-            <option value="nuevo">Nuevo sellado</option>
-            <option value="abierto">Nuevo, caja abierta</option>
-            <option value="usado">Usado, buen estado</option>
-            <option value="detalle">Con detalle o falla</option>
+            <option value="nuevo">Nuevo sellado / con caja</option>
+            <option value="abierto">Nuevo sin caja o sin sello</option>
+            <option value="usado">Probado (swatch) o poco uso</option>
+            <option value="detalle">Empaque dañado o por vencer</option>
           </select></label>
         <label for="fCant">Cantidad<input id="fCant" type="number" min="1" value="1" inputmode="numeric"></label>
       </div>
-      <label for="fCat">Categoría<input id="fCat" placeholder="Electrónica, hogar, juguetes…"></label>
+      <label for="fCat">Tipo de producto<input id="fCat" placeholder="Labial, base, iluminador, paleta, skincare…"></label>
+      <div class="grid3">
+        <label for="fTono">Tono / color<input id="fTono" placeholder="Ej: Trophy Wife"></label>
+        <label for="fTam">Tamaño<input id="fTam" placeholder="Ej: 7,1 g · mini"></label>
+        <label for="fVence">Vence<input id="fVence" placeholder="mm/aaaa"></label>
+      </div>
 
       <h3>Precio</h3>
       <div class="grid2">
-        <label for="fUsd">Precio nuevo en Amazon (USD)<input id="fUsd" type="number" step="0.01" inputmode="decimal"></label>
-        <label for="fUsdUsado">Usado en eBay (USD)<input id="fUsdUsado" type="number" step="0.01" inputmode="decimal"></label>
+        <label for="fUsd">Precio nuevo en EEUU (USD)<input id="fUsd" type="number" step="0.01" inputmode="decimal"></label>
+        <label for="fUsdUsado">Reventa en EEUU (USD)<input id="fUsdUsado" type="number" step="0.01" inputmode="decimal"></label>
       </div>
       <div class="price-box" id="priceBox"></div>
       <div class="grid2">
@@ -261,9 +266,10 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       <h3>Cómo sacar las fotos</h3>
       <ol class="tips small">
         <li><b>Una foto por producto.</b> La IA identifica mejor el modelo y esa misma foto te sirve para el anuncio.</li>
-        <li>Que se lea la marca, el modelo o el código de barras. Si la caja tiene la etiqueta atrás, saca la foto de ese lado.</li>
+        <li>Que se lea la marca, el nombre del producto y el <b>tono</b>. En labiales, bases y polvos el tono suele estar en la etiqueta de abajo: pon el producto de forma que se vea.</li>
         <li>Buena luz, fondo liso, sin otros productos alrededor.</li>
-        <li>Para cosas chicas y baratas (cables, fundas, adornos) puedes juntar hasta 6 en una foto, separadas y con la etiqueta a la vista. Usa la opción "Varios productos por foto".</li>
+        <li>Labiales, delineadores, minis o productos baratos: puedes juntar hasta 6 en una foto, separados y con el nombre y el tono a la vista. Usa "Varios productos por foto". Paletas, bases y productos caros: uno por foto.</li>
+        <li>Si tiene caja, que salga con la caja: "nuevo en caja" se vende más caro y da confianza de que es original.</li>
       </ol>
     </div>
     <div class="card">
@@ -272,7 +278,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
         <label style="flex-direction:row;align-items:center;gap:6px"><input type="radio" name="loteModo" value="varios" style="width:auto" id="mVarios">Varios productos por foto</label>
       </div>
       <label for="loteEstado">Estado si no se nota en la foto
-        <select id="loteEstado"><option value="abierto">Nuevo, caja abierta</option><option value="nuevo">Nuevo sellado</option><option value="usado">Usado, buen estado</option><option value="detalle">Con detalle o falla</option></select></label>
+        <select id="loteEstado"><option value="nuevo">Nuevo sellado / con caja</option><option value="abierto">Nuevo sin caja o sin sello</option><option value="usado">Probado (swatch) o poco uso</option><option value="detalle">Empaque dañado o por vencer</option></select></label>
       <label for="lotePhotos" class="btn" style="flex-direction:row;color:var(--ink);font-size:1rem">Elegir fotos de la galería</label>
       <input id="lotePhotos" type="file" accept="image/*" multiple hidden>
       <button type="button" class="primary" id="btnLote">Subir e identificar</button>
@@ -319,8 +325,8 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const ESTADO_TXT = {nuevo:"Nuevo sellado", abierto:"Nuevo, caja abierta", usado:"Usado, buen estado", detalle:"Con detalle"};
-  const ESTADO_F = {nuevo:1, abierto:0.9, usado:0.75, detalle:0.5};
+  const ESTADO_TXT = {nuevo:"Nuevo sellado", abierto:"Nuevo sin caja", usado:"Probado / poco uso", detalle:"Empaque dañado o por vencer"};
+  const ESTADO_F = {nuevo:1, abierto:0.85, usado:0.55, detalle:0.45};
   const STATUS_TXT = {pendiente:"Sin publicar", publicado:"Publicado", vendido:"Vendido"};
   // Dólar verificado el 26/10/2026: oficial BCB 11,88; USDT (Binance) 12,06. Se actualiza desde Ajustes.
   const DEFAULT_CFG = {costoCaja:1600, tcOficial:11.88, tcMercado:12.06, tcModo:"mercado", tcFecha:"26/10/2026", tcFuente:"BCB (bcb.gob.bo) y Monitor Cambiario de Bolivia (USDT/Binance)", ciudad:"Santa Cruz", telefono:"", entrega:""};
@@ -451,7 +457,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     const price = st === "vendido" ? (n(it.precioVendidoBs) || askPrice(it)) : askPrice(it);
     const initial = esc((it.nombre || "?").trim().charAt(0).toUpperCase());
     b.innerHTML = `${it.fotoUrl ? `<img class="thumb" alt="" src="${esc(it.fotoUrl)}">` : `<div class="thumb">${initial}</div>`}
-      <div style="min-width:0"><div class="nm">${esc(it.nombre || "Sin nombre")}</div>
+      <div style="min-width:0"><div class="nm">${esc(it.nombre || "Sin nombre")}${it.tono ? ` <span class="muted small">· ${esc(it.tono)}</span>` : ""}</div>
       <div class="small muted">${esc(ESTADO_TXT[it.estado] || "")}${units(it) > 1 ? " · x" + units(it) : ""}</div>
       <span class="pill st-${st}">${STATUS_TXT[st]}</span> ${it.ia ? `<span class="pill ${(CONF[it.ia.confianza] || CONF.baja)[1]}">${(CONF[it.ia.confianza] || CONF.baja)[0].replace("Confianza ", "conf. ")}</span>` : (st !== "vendido" ? `<span class="small muted">sin investigar</span>` : "")}</div>
       <div class="pr">${price ? bs(price) : "<span class='small muted'>sin precio</span>"}</div>`;
@@ -463,12 +469,12 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     const list = $("list"); list.innerHTML = "";
     const rows = items
       .filter(it => filter === "todos" || (it.status || "pendiente") === filter)
-      .filter(it => !q || [it.nombre, it.marca, it.codigo, it.categoria].join(" ").toLowerCase().includes(q))
+      .filter(it => !q || [it.nombre, it.marca, it.codigo, it.categoria, it.tono].join(" ").toLowerCase().includes(q))
       .sort((a,b) => (b.creado || 0) - (a.creado || 0));
     if (!rows.length){
       list.innerHTML = items.length
         ? `<p class="muted small">Nada coincide con este filtro.</p>`
-        : `<div class="empty"><h3>Tu caja está vacía aquí</h3><p class="small muted">Saca la primera foto de un producto: la app lo identifica y busca en internet a cuánto se vende.</p><button class="primary" type="button" id="emptyAdd">Agregar el primer producto</button></div>`;
+        : `<div class="empty"><h3>Tu caja está vacía aquí</h3><p class="small muted">Saca la primera foto de un producto de belleza: la app lee la marca y el tono, y busca en internet a cuánto se vende y se revende.</p><button class="primary" type="button" id="emptyAdd">Agregar el primer producto</button></div>`;
       const ea = $("emptyAdd"); if (ea) ea.onclick = () => openEditor(null);
       return;
     }
@@ -485,15 +491,15 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   $("btnCatalog").onclick = () => {
     const disp = items.filter(it => (it.status || "pendiente") !== "vendido" && askPrice(it));
     if (!disp.length){ toast("No hay productos disponibles con precio"); return; }
-    const lines = disp.sort((a,b) => askPrice(b) - askPrice(a)).map(it => `▪️ ${it.nombre} (${ESTADO_TXT[it.estado] || ""}) — ${bs(askPrice(it))}`);
-    const txt = `📦 *Productos importados de Amazon USA*\n📍 ${cfg.ciudad}\n\n${lines.join("\n")}\n\n${cfg.entrega ? "🚚 " + cfg.entrega + "\n" : ""}${cfg.telefono ? "📲 Pedidos al " + cfg.telefono + "\n" : ""}Precios en bolivianos. Escríbeme por lo que te interese.`;
+    const lines = disp.sort((a,b) => askPrice(b) - askPrice(a)).map(it => `▪️ ${fullName(it)} (${ESTADO_TXT[it.estado] || ""}) — ${bs(askPrice(it))}`);
+    const txt = `💄 *Maquillaje y belleza original de EEUU*\n📍 ${cfg.ciudad}\n\n${lines.join("\n")}\n\n${cfg.entrega ? "🚚 " + cfg.entrega + "\n" : ""}${cfg.telefono ? "📲 Pedidos al " + cfg.telefono + "\n" : ""}Precios en bolivianos. Escríbeme por lo que te interese.`;
     copy(txt);
   };
 
   $("btnCsv").onclick = async () => {
-    const head = ["Producto","Marca","Codigo","Categoria","Estado","Cantidad","Amazon USD","Usado USD","Rapido Bs","Normal Bs","Publicado Bs","Situacion","Vendido Bs","Canales","Notas"];
+    const head = ["Producto","Marca","Tono","Tamano","Vence","Codigo","Tipo","Estado","Cantidad","Nuevo USD","Reventa USD","Rapido Bs","Normal Bs","Publicado Bs","Situacion","Vendido Bs","Canales","Notas"];
     const q = (v) => `"${String(v ?? "").replace(/"/g,'""')}"`;
-    const rows = items.map(it => [it.nombre,it.marca,it.codigo,it.categoria,ESTADO_TXT[it.estado],units(it),it.precioUsd,it.precioUsadoUsd,it.precioRapidoBs,it.precioNormalBs,it.precioPublicadoBs,STATUS_TXT[it.status||"pendiente"],it.precioVendidoBs,(it.canales||[]).join(" / "),it.notas].map(q).join(","));
+    const rows = items.map(it => [it.nombre,it.marca,it.tono,it.tamano,it.vence,it.codigo,it.categoria,ESTADO_TXT[it.estado],units(it),it.precioUsd,it.precioUsadoUsd,it.precioRapidoBs,it.precioNormalBs,it.precioPublicadoBs,STATUS_TXT[it.status||"pendiente"],it.precioVendidoBs,(it.canales||[]).join(" / "),it.notas].map(q).join(","));
     const csv = "﻿" + [head.map(q).join(","), ...rows].join("\n");
     if (!downloadsApi){ copy(csv); toast("Copiado como texto (descarga no disponible aquí)"); return; }
     try { await downloadsApi.save({filename:"inventario-caja-amazon.csv", data:new Blob([csv], {type:"text/csv"})}); }
@@ -505,6 +511,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   function setForm(it){
     F("fNombre").value = it.nombre || ""; F("fMarca").value = it.marca || ""; F("fCodigo").value = it.codigo || "";
     F("fEstado").value = it.estado || "nuevo"; F("fCant").value = it.cantidad || 1; F("fCat").value = it.categoria || "";
+    F("fTono").value = it.tono || ""; F("fTam").value = it.tamano || ""; F("fVence").value = it.vence || "";
     F("fUsd").value = it.precioUsd || ""; F("fUsdUsado").value = it.precioUsadoUsd || "";
     F("fRapido").value = it.precioRapidoBs || ""; F("fNormal").value = it.precioNormalBs || "";
     F("fStatus").value = it.status || "pendiente"; F("fPub").value = it.precioPublicadoBs || "";
@@ -544,17 +551,22 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   ["fUsd","fEstado"].forEach(id => F(id).addEventListener("input", updatePriceBox));
 
   function query(){ return (F("fNombre").value || F("fMarca").value || F("fCodigo").value).trim(); }
+  const fullName = (it) => [it.nombre, it.tono && !String(it.nombre || "").toLowerCase().includes(String(it.tono).toLowerCase()) ? "tono " + it.tono : "", it.tamano].filter(Boolean).join(" · ");
   function updateLinks(){
     const q = query(); const box = $("links");
     if (!q){ box.innerHTML = `<span class="small muted">Escribe el nombre para ver enlaces de comparación.</span>`; return; }
     const e = encodeURIComponent(q), dash = encodeURIComponent(q.replace(/\s+/g, "-"));
     const L = [
-      ["Amazon (nuevo)", `https://www.amazon.com/s?k=${e}`],
+      ["Poshmark vendidos", `https://poshmark.com/search?query=${e}&type=listings&availability=sold_out`],
+      ["Mercari vendidos", `https://www.mercari.com/search/?keyword=${e}&itemStatuses=2`],
       ["eBay vendidos", `https://www.ebay.com/sch/i.html?_nkw=${e}&LH_Sold=1&LH_Complete=1`],
+      ["Ulta (nuevo)", `https://www.ulta.com/search?search=${e}`],
+      ["Sephora (nuevo)", `https://www.sephora.com/search?keyword=${e}`],
+      ["Amazon (nuevo)", `https://www.amazon.com/s?k=${e}`],
+      ["Tiendas belleza Bolivia", `https://www.google.com/search?q=${encodeURIComponent(q + " (site:best.com.bo OR site:nuba.com.bo OR site:pielboliviana.com OR site:kbeautybolivia.com)")}`],
       ["Marketplace", `https://www.facebook.com/marketplace/search/?query=${e}`],
       ["Mercado Libre Perú", `https://listado.mercadolibre.com.pe/${dash}`],
       ["Mercado Libre Chile", `https://listado.mercadolibre.cl/${dash}`],
-      ["Mercado Libre Argentina", `https://listado.mercadolibre.com.ar/${dash}`],
       ["Reventa Bolivia", `https://www.google.com/search?q=${encodeURIComponent(q + " (site:evisos.com.bo OR site:clasificados.ibolivia.net OR site:locanto.com.bo)")}`],
       ["Mercado Libre usados", `https://listado.mercadolibre.com.pe/${dash}_ITEM*CONDITION_2230581`],
       ["Google Bolivia", `https://www.google.com/search?q=${encodeURIComponent(q + " precio Bolivia")}`],
@@ -666,34 +678,35 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 
   $("btnStop").onclick = () => aiCtl?.abort();
 
-  function researchPrompt({hasPhoto, nombre, codigo, estado, cantidad}){
+  function researchPrompt({hasPhoto, nombre, codigo, estado, cantidad, tono, tamano, vence}){
     const rate = tc(), hoy = new Date().toLocaleDateString("es-BO");
-    return `Eres analista de precios para revendedores en Bolivia (ciudad: ${cfg.ciudad}). El producto viene de una caja de devoluciones de Amazon EEUU.
+    return `Eres analista de precios para revendedoras de MAQUILLAJE Y BELLEZA en Bolivia (ciudad: ${cfg.ciudad}). El producto viene de una caja de devoluciones de Amazon EEUU.
 ${hasPhoto ? "1) Identifica el producto exacto en la foto (marca, modelo, variante). Lee etiquetas, texto y código de barras si se ven." : "1) El producto es el que describe el vendedor (ya fue identificado por foto)."}
-Datos del vendedor: nombre: "${nombre}"; código: "${codigo || ""}"; estado: "${ESTADO_TXT[estado] || estado}"; cantidad: ${cantidad || 1}.
+Datos del vendedor: nombre: "${nombre}"; tono: "${tono || ""}"; tamaño: "${tamano || ""}"; vence: "${vence || ""}"; código: "${codigo || ""}"; estado: "${ESTADO_TXT[estado] || estado}"; cantidad: ${cantidad || 1}.
 Dólar que usa el vendedor: ${rate} Bs por 1 USD (${cfg.tcModo === "oficial" ? "oficial BCB" : "mercado"}). Fecha de hoy: ${hoy}.
 
 2) INVESTIGA EN INTERNET con las herramientas. Sé eficiente: en tu PRIMERA ronda lanza a la vez 4 llamadas a buscar_web:
-   a) precio nuevo en Amazon.com del modelo exacto, y precio de usados VENDIDOS en eBay;
-   b) precio en Bolivia, con búsquedas como "<modelo> precio Bs Bolivia", "<modelo> ${cfg.ciudad} Bolivia", "<marca> <tipo de producto> precio Bs Bolivia". Las tiendas bolivianas publican en BOB/Bs (ej. itienda-bolivia.com, tecnogamer.com.bo y otras .com.bo). Facebook Marketplace casi no aparece en buscadores: no lo inventes. Si no hay el modelo exacto en Bolivia, toma 1-2 productos MUY parecidos de tiendas bolivianas como referencia y márcalos con plataforma "Tienda (similar)";
-   c) precio en mercados parecidos: Mercado Libre Perú (.com.pe), Chile (.cl) o Argentina (.com.ar).
-   d) PRECIOS DE REVENTA (segunda mano), SIEMPRE: busca usados o de ocasión con búsquedas como "site:evisos.com.bo <modelo>", "site:clasificados.ibolivia.net <modelo o tipo de producto>", "site:locanto.com.bo <modelo>", "<modelo> usado Mercado Libre", "<modelo> used sold eBay".
+   a) precio NUEVO de venta oficial en EEUU: Ulta, Sephora o Amazon.com (mismo producto y mismo tamaño; el tono casi nunca cambia el precio);
+   b) precio en Bolivia, en tiendas de belleza que publican en Bs: "site:best.com.bo <producto>", "site:nuba.com.bo <marca>", "site:pielboliviana.com <producto>", "site:kbeautybolivia.com <producto>" y "<producto> precio Bs Bolivia". Facebook Marketplace casi no aparece en buscadores: no lo inventes. Si no hay el modelo exacto en Bolivia, toma 1-2 productos MUY parecidos de tiendas bolivianas como referencia y márcalos con plataforma "Tienda (similar)";
+   c) precio en mercados parecidos: Mercado Libre Perú (.com.pe) o Chile (.cl), Falabella.
+   d) PRECIOS DE REVENTA, SIEMPRE: "site:poshmark.com <producto>", "site:mercari.com <producto>", "<producto> eBay sold" (en Poshmark/Mercari distingue "NWT/BNIB/new in box", "swatched" y "used"; los marcados SOLD valen más como referencia). Si da tiempo, también "site:evisos.com.bo <tipo de producto>" o "site:clasificados.ibolivia.net maquillaje".
    Si hace falta, en la segunda ronda usa leer_pagina en 1 a 3 URLs para confirmar precios. No hagas más de 3 rondas de herramientas.
 
 3) REGLAS DE CALIDAD:
    - Solo usa precios que viste en los resultados, cada uno con su URL. NUNCA inventes precios ni URLs. Si no encontraste algo, déjalo en null.
-   - Descarta resultados de otro modelo, accesorios o lotes. Indica si el anuncio es nuevo o usado.
+   - Descarta resultados de otro producto, de otro TAMAÑO (un mini/deluxe vale mucho menos que el tamaño completo), sets o lotes. Indica si el anuncio es nuevo o usado.
+   - En maquillaje lo probado/usado vale poco (higiene): para estado "Probado" toma el rango bajo de reventa. Si está vencido o por vencer, bájalo y dilo.
    - Marca cada precio con "tipo": "reventa" (usado, segunda mano, ocasión, eBay vendido, clasificados) o "nuevo" (tienda o Amazon nuevo).
    - LA REVENTA MANDA: si hay precios de reventa del mismo modelo (o muy parecido), el precio sugerido se basa en ellos: "normal" ≈ mediana de reventa (ajustada hacia arriba si el tuyo está sellado o casi nuevo, hasta el precio nuevo de tienda boliviana como máximo), "rápido" ≈ el más bajo de los de reventa. Solo si NO hay reventa usa la regla de porcentajes de abajo y dilo en "explicacion".
    - Las tiendas bolivianas venden NUEVO con garantía: su precio es un techo. Un producto de caja de devoluciones se vende normalmente entre 55% y 80% de ese precio según el estado.
    - Convierte a Bs: USD × ${rate}. Para soles, pesos chilenos o argentinos usa la tasa de cambio actual que encuentres o tu mejor dato y dilo en "explicacion".
-   - Precio sugerido: el "normal" debe estar cerca de la mediana de los anuncios comparables en Bolivia (si existen) o, si no, del precio en Amazon en Bs ajustado por estado (nuevo sellado ~75-85%, caja abierta ~65-75%, usado ~50-65%, con falla ~30-45%). El "rápido" es 15-25% menos que el normal y nunca menor al precio de usado vendido en eBay en Bs. Redondea a múltiplos de 5 Bs.
+   - Precio sugerido: el "normal" debe estar cerca de la mediana de los anuncios comparables en Bolivia (si existen) o, si no, del precio nuevo de EEUU en Bs ajustado por estado para maquillaje (sellado/en caja ~70-80%, sin caja o sin sello ~55-65%, probado ~30-45%, empaque dañado o por vencer ~25-40%), sin pasar el precio de tienda boliviana del mismo producto. El "rápido" es 15-25% menos que el normal y nunca menor al precio de reventa más bajo encontrado (en Bs). Redondea a múltiplos de 5 Bs.
    - confianza "alta": modelo identificado con seguridad y 3 o más precios comparables con URL, al menos 1 de REVENTA y al menos 1 de Bolivia o de eBay vendidos. "media": modelo seguro y 1-2 comparables, o solo precio de Amazon. "baja": modelo dudoso o sin precios. Explica el motivo en una frase.
 
-4) Escribe textos de venta en español boliviano natural, honestos con el estado, mencionando "original de EEUU". No inventes accesorios.
+4) Escribe textos de venta en español boliviano natural para chicas que compran maquillaje: honestos con el estado, que digan "100% original, traído de EEUU", el tono y el tamaño, y el precio de tienda como comparación si lo encontraste (ej. "en tienda cuesta Bs X"). En TikTok usa hashtags de belleza (#maquillajebolivia #makeupbolivia #${cfg.ciudad.replace(/\s+/g, "").toLowerCase()} y de la marca). No inventes accesorios ni tonos.
 
 Al final responde SOLO con este JSON:
-{"nombre":"","marca":"","modelo":"","categoria":"","confianza":"alta|media|baja","motivoConfianza":"","amazonNuevoUSD":null,"ebayUsadoUSD":null,"comparables":[{"plataforma":"Amazon|eBay vendido|Mercado Libre|Tienda|Tienda (similar)|Clasificados|Otro","tipo":"reventa|nuevo","pais":"","estado":"nuevo|usado","precio":0,"moneda":"USD|BOB|PEN|CLP|ARS","precioBs":0,"url":""}],"reventaBs":{"min":null,"mediana":null,"max":null,"cantidad":0},"sugerido":{"rapidoBs":null,"normalBs":null,"explicacion":"","basadoEnReventa":false},"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"","titulo":"","descripcion":"","whatsapp":"","tiktok":""}`;
+{"nombre":"","marca":"","modelo":"","categoria":"","confianza":"alta|media|baja","motivoConfianza":"","nuevoUSD":null,"reventaUSD":null,"comparables":[{"plataforma":"Ulta|Sephora|Amazon|Poshmark|Mercari|eBay vendido|Mercado Libre|Tienda Bolivia|Tienda (similar)|Clasificados|Otro","tipo":"reventa|nuevo","pais":"","estado":"nuevo|usado","precio":0,"moneda":"USD|BOB|PEN|CLP|ARS","precioBs":0,"url":""}],"reventaBs":{"min":null,"mediana":null,"max":null,"cantidad":0},"sugerido":{"rapidoBs":null,"normalBs":null,"explicacion":"","basadoEnReventa":false},"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"","titulo":"","descripcion":"","whatsapp":"","tiktok":""}`;
   }
   async function research(ctx, progress, signal, image){
     const tools = await webTools(progress);
@@ -709,8 +722,9 @@ Al final responde SOLO con este JSON:
     if (r.nombre) f.nombre = r.nombre;
     if (r.marca || r.modelo) f.marca = [r.marca, r.modelo].filter(Boolean).join(" ");
     if (r.categoria && !base.categoria) f.categoria = r.categoria;
-    if (r.amazonNuevoUSD) f.precioUsd = n(r.amazonNuevoUSD);
-    if (r.ebayUsadoUSD) f.precioUsadoUsd = n(r.ebayUsadoUSD);
+    const nuevo = r.nuevoUSD ?? r.amazonNuevoUSD, reventa = r.reventaUSD ?? r.ebayUsadoUSD;
+    if (nuevo) f.precioUsd = n(nuevo);
+    if (reventa) f.precioUsadoUsd = n(reventa);
     if (r.sugerido?.rapidoBs) f.precioRapidoBs = n(r.sugerido.rapidoBs);
     if (r.sugerido?.normalBs){ f.precioNormalBs = n(r.sugerido.normalBs); if (!n(base.precioPublicadoBs)) f.precioPublicadoBs = n(r.sugerido.normalBs); }
     if (r.titulo) f.titulo = r.titulo;
@@ -732,7 +746,7 @@ Al final responde SOLO con este JSON:
     $("btnStop").hidden = false; $("aiProgress").innerHTML = ""; aiProgress(hasPhoto ? "Identificando el producto en la foto" : "Preparando la búsqueda");
     aiCtl = new AbortController();
     try{
-      const r = await research({hasPhoto, nombre:txt, codigo:F("fCodigo").value, estado:F("fEstado").value, cantidad:F("fCant").value}, aiProgress, aiCtl.signal, hasPhoto ? photoBlob : null);
+      const r = await research({hasPhoto, nombre:txt, codigo:F("fCodigo").value, estado:F("fEstado").value, cantidad:F("fCant").value, tono:F("fTono").value, tamano:F("fTam").value, vence:F("fVence").value}, aiProgress, aiCtl.signal, hasPhoto ? photoBlob : null);
       lastAI = r;
       const f = aiFields(r, {categoria:F("fCat").value, precioPublicadoBs:F("fPub").value});
       const map = {nombre:"fNombre", marca:"fMarca", categoria:"fCat", precioUsd:"fUsd", precioUsadoUsd:"fUsdUsado", precioRapidoBs:"fRapido", precioNormalBs:"fNormal", precioPublicadoBs:"fPub", titulo:"fTitulo", descripcion:"fDesc", whatsapp:"fWa", tiktok:"fTk"};
@@ -783,11 +797,11 @@ Al final responde SOLO con este JSON:
   }
 
   function idPrompt(modo, estadoDef){
-    return `Eres experto en identificar productos de cajas de devoluciones de Amazon EEUU. Mira la foto.
+    return `Eres experto en maquillaje y productos de belleza (marcas de EEUU, Europa y Corea) que vienen en cajas de devoluciones de Amazon EEUU. Mira la foto.
 ${modo === "varios" ? "En la foto puede haber VARIOS productos distintos. Haz una lista con cada producto distinto que se vea (ignora cajas vacías, bolsas o fondo). Si hay unidades repetidas del mismo producto, ponlo una vez con su cantidad." : "En la foto hay UN producto principal (puede verse con su caja o accesorios). Identifica solo ese."}
-Para cada producto: lee marca, modelo, texto y código de barras (UPC/EAN/ASIN) si se ven. No adivines un modelo que no se lee: si no estás seguro pon el nombre genérico (ej. "Audífonos Bluetooth negros") y confianza "baja".
-Estado: deduce por la foto ("nuevo" si está sellado, "abierto" si la caja está abierta pero se ve nuevo, "usado", o "detalle" si se ve daño). Si no se puede saber usa "${estadoDef}".
-Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en español con marca y modelo","marca":"","modelo":"","categoria":"","codigo":"","estado":"nuevo|abierto|usado|detalle","cantidad":1,"confianza":"alta|media|baja","ubicacion":"dónde está en la foto, solo si hay varios"}]}`;
+Para cada producto lee: marca, línea/nombre del producto (ej. "Killawatt Freestyle Highlighter"), tipo (labial, base, corrector, iluminador, rubor, bronzer, paleta de sombras, máscara, delineador, cejas, polvo, primer, spray fijador, skincare, cabello, uñas, perfume, brochas, set), TONO o color (suele estar en una etiqueta abajo o al costado), tamaño (g, ml, oz; indica si es "mini" o "deluxe"), código de barras y fecha de vencimiento o PAO si se ven. No adivines lo que no se lee: si no estás seguro pon el nombre genérico (ej. "Labial líquido rosado") y confianza "baja".
+Estado: deduce por la foto ("nuevo" si está sellado o en su caja, "abierto" si no tiene caja o sello pero se ve sin uso, "usado" si se ve probado/swatch, o "detalle" si el empaque está dañado o vencido). Si no se puede saber usa "${estadoDef}".
+Responde SOLO con JSON: {"productos":[{"nombre":"marca + nombre del producto, claro","marca":"","modelo":"línea del producto","categoria":"tipo de producto","tono":"","tamano":"","vence":"","codigo":"","estado":"nuevo|abierto|usado|detalle","cantidad":1,"confianza":"alta|media|baja","ubicacion":"dónde está en la foto, solo si hay varios"}]}`;
   }
 
   $("btnLote").onclick = async () => {
@@ -816,6 +830,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en espa�
           for (const [j, p] of prods.entries()){
             await store.saveItem(null, {
               nombre:String(p.nombre), marca:[p.marca, p.modelo].filter(Boolean).join(" "), codigo:String(p.codigo || ""), categoria:String(p.categoria || ""),
+              tono:String(p.tono || ""), tamano:String(p.tamano || ""), vence:String(p.vence || ""),
               estado: ESTADO_TXT[p.estado] ? p.estado : estadoDef, cantidad: Math.max(1, Math.round(n(p.cantidad)) || 1),
               status:"pendiente", canales:[], fotoUrl, fotoId, idConfianza:p.confianza || "", ubicacion: modo === "varios" ? String(p.ubicacion || "") : "",
               notas: modo === "varios" && p.ubicacion ? "En la foto: " + p.ubicacion : "", ia:null,
@@ -823,7 +838,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en espa�
             });
             creados++;
           }
-          row.set(prods.length > 1 ? `${prods.length} productos agregados` : `Agregado · identificación ${prods[0].confianza || ""}`, prods.map(p => p.nombre).join(" · "));
+          row.set(prods.length > 1 ? `${prods.length} productos agregados` : `Agregado · identificación ${prods[0].confianza || ""}`, prods.map(p => p.nombre + (p.tono ? " (" + p.tono + ")" : "")).join(" · "));
         }catch(e){
           if (e?.code === "cancelled"){ row.set("Detenido"); return; }
           // Igual se guarda con la foto para completarlo a mano
@@ -852,7 +867,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en espa�
         const row = loteRow(it.nombre, it.fotoUrl);
         try{
           row.set("Buscando precios…");
-          const ctx = {hasPhoto:false, nombre:[it.nombre, it.marca].filter(Boolean).join(" — "), codigo:it.codigo, estado:it.estado, cantidad:it.cantidad};
+          const ctx = {hasPhoto:false, nombre:[it.nombre, it.marca].filter(Boolean).join(" — "), codigo:it.codigo, estado:it.estado, cantidad:it.cantidad, tono:it.tono, tamano:it.tamano, vence:it.vence};
           const prog = (m) => row.set(m);
           let r;
           try { r = await research(ctx, prog, signal); }
@@ -921,7 +936,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en espa�
       const status = F("fStatus").value;
       const data = {
         nombre:F("fNombre").value.trim(), marca:F("fMarca").value.trim(), codigo:F("fCodigo").value.trim(),
-        estado:F("fEstado").value, cantidad:Math.max(1, Math.round(n(F("fCant").value)) || 1), categoria:F("fCat").value.trim(),
+        estado:F("fEstado").value, cantidad:Math.max(1, Math.round(n(F("fCant").value)) || 1), categoria:F("fCat").value.trim(), tono:F("fTono").value.trim(), tamano:F("fTam").value.trim(), vence:F("fVence").value.trim(),
         precioUsd:n(F("fUsd").value) || null, precioUsadoUsd:n(F("fUsdUsado").value) || null,
         precioRapidoBs:n(F("fRapido").value) || null, precioNormalBs:n(F("fNormal").value) || null,
         precioPublicadoBs:n(F("fPub").value) || null, status,

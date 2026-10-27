@@ -1,6 +1,6 @@
 # Caja Amazon Bolivia
 
-App web para inventariar y vender los productos de una caja de devoluciones de Amazon en Bolivia.
+App web para inventariar y vender maquillaje y productos de belleza de una caja de devoluciones de Amazon en Bolivia.
 
 - Foto del producto → la IA lo identifica e investiga precios reales en internet (conector Parallel Search), cada uno con su enlace y nivel de confianza
 - Dólar oficial BCB y de mercado (USDT), actualizable con datos del día
