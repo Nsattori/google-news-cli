@@ -77,6 +77,8 @@ textarea{min-height:84px;resize:vertical}
 .photo{display:flex;gap:12px;align-items:center}
 .photo img,.photo .thumb{width:96px;height:96px;border-radius:10px;object-fit:cover}
 .ai{border-left:4px solid var(--tape);background:var(--bg);padding:12px;border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:6px}
+.ai td,.ai th{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.ai a{color:var(--accent)}
 .links{display:flex;flex-wrap:wrap;gap:8px}
 .links a{font-size:.9rem;padding:8px 12px;color:var(--accent);border-color:var(--line)}
 .price-box{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -133,7 +135,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     <div class="card">
       <h3>Cómo vender rápido</h3>
       <ol class="tips small">
-        <li>Saca foto, toca <b>Identificar con IA</b> y revisa el precio con los enlaces.</li>
+        <li>Saca foto y toca <b>Investigar precio en internet</b>: busca el modelo en Amazon, eBay, Bolivia y Mercado Libre, y te muestra cada precio con su enlace.</li>
         <li>Publica el mismo día en Marketplace, tu estado de WhatsApp y un video corto en TikTok.</li>
         <li>Usa el <b>precio rápido</b> si quieres vender en días, el <b>normal</b> si puedes esperar.</li>
         <li>Lo que no se vende en 7 días, bájalo 10–15% o arma un combo.</li>
@@ -172,7 +174,12 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
           <span class="small muted">Saca la foto con la etiqueta o el código de barras visible.</span>
         </div>
       </div>
-      <button type="button" class="primary" id="btnAI">Identificar y poner precio con IA</button>
+      <div class="notice" id="webNotice" hidden></div>
+      <div class="row">
+        <button type="button" class="primary grow" id="btnAI">Investigar precio en internet</button>
+        <button type="button" id="btnStop" hidden>Detener</button>
+      </div>
+      <div class="ai" id="aiProgress" hidden></div>
       <div class="ai" id="aiBox" hidden></div>
 
       <label for="fNombre">Producto<input id="fNombre" placeholder="Ej: Audífonos Bluetooth JBL Tune 510BT"></label>
@@ -250,8 +257,15 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     <h2>Ajustes</h2>
     <form class="card" id="cfgForm" novalidate>
       <label for="cCosto">Lo que pagaste por la caja (Bs)<input id="cCosto" type="number" inputmode="numeric"></label>
-      <label for="cTc">Tipo de cambio: Bs por 1 dólar<input id="cTc" type="number" step="0.01" inputmode="decimal"></label>
-      <p class="small muted">Pon el dólar al que se mueve tu mercado. Si los vendedores de importados en tu ciudad cobran al paralelo, usa ese valor y no el oficial.</p>
+      <h3>Dólar</h3>
+      <div class="grid2">
+        <label for="cTcOf">Oficial BCB (Bs por $us)<input id="cTcOf" type="number" step="0.01" inputmode="decimal"></label>
+        <label for="cTcMk">Mercado / USDT (Bs por $us)<input id="cTcMk" type="number" step="0.01" inputmode="decimal"></label>
+      </div>
+      <label for="cTcModo">Para convertir precios usar
+        <select id="cTcModo"><option value="mercado">Dólar de mercado (recomendado para importados)</option><option value="oficial">Dólar oficial BCB</option></select></label>
+      <p class="small muted" id="tcInfo"></p>
+      <button type="button" id="btnTc">Actualizar dólar con datos de hoy</button>
       <div class="grid2">
         <label for="cCiudad">Ciudad
           <select id="cCiudad"><option>Santa Cruz</option><option>La Paz</option><option>El Alto</option><option>Cochabamba</option><option>Sucre</option><option>Tarija</option><option>Oruro</option><option>Potosí</option><option>Otra</option></select></label>
@@ -272,7 +286,11 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   const ESTADO_TXT = {nuevo:"Nuevo sellado", abierto:"Nuevo, caja abierta", usado:"Usado, buen estado", detalle:"Con detalle"};
   const ESTADO_F = {nuevo:1, abierto:0.9, usado:0.75, detalle:0.5};
   const STATUS_TXT = {pendiente:"Sin publicar", publicado:"Publicado", vendido:"Vendido"};
-  const DEFAULT_CFG = {costoCaja:1600, tipoCambio:6.96, ciudad:"Santa Cruz", telefono:"", entrega:""};
+  // Dólar verificado el 26/10/2026: oficial BCB 11,88; USDT (Binance) 12,06. Se actualiza desde Ajustes.
+  const DEFAULT_CFG = {costoCaja:1600, tcOficial:11.88, tcMercado:12.06, tcModo:"mercado", tcFecha:"26/10/2026", tcFuente:"BCB (bcb.gob.bo) y Monitor Cambiario de Bolivia (USDT/Binance)", ciudad:"Santa Cruz", telefono:"", entrega:""};
+  const tc = () => n(cfg.tcModo === "oficial" ? cfg.tcOficial : cfg.tcMercado) || DEFAULT_CFG.tcMercado;
+  const WEB = "Parallel Search";   // conector de búsqueda web de claude.ai
+  let mcpApi = null, permApi = null;
 
   let cfg = {...DEFAULT_CFG};
   let items = [];
@@ -342,7 +360,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   // Precio de referencia calculado sin IA: dólar × tipo de cambio × estado
   function formulaPrices(usd, estado){
     if (!usd) return null;
-    const nuevoBs = usd * n(cfg.tipoCambio);
+    const nuevoBs = usd * tc();
     const f = ESTADO_F[estado] ?? 1;
     return {nuevoBs, rapido: round5(nuevoBs * 0.55 * f), normal: round5(nuevoBs * 0.75 * f)};
   }
@@ -412,7 +430,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     if (!rows.length){
       list.innerHTML = items.length
         ? `<p class="muted small">Nada coincide con este filtro.</p>`
-        : `<div class="empty"><h3>Tu caja está vacía aquí</h3><p class="small muted">Saca la primera foto de un producto y la IA te dice qué es y a cuánto venderlo.</p><button class="primary" type="button" id="emptyAdd">Agregar el primer producto</button></div>`;
+        : `<div class="empty"><h3>Tu caja está vacía aquí</h3><p class="small muted">Saca la primera foto de un producto: la app lo identifica y busca en internet a cuánto se vende.</p><button class="primary" type="button" id="emptyAdd">Agregar el primer producto</button></div>`;
       const ea = $("emptyAdd"); if (ea) ea.onclick = () => openEditor(null);
       return;
     }
@@ -480,7 +498,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     const usd = n(F("fUsd").value), est = F("fEstado").value;
     const p = formulaPrices(usd, est);
     const box = $("priceBox");
-    if (!p){ box.innerHTML = `<div style="grid-column:1/-1" class="small muted">Pon el precio de Amazon en dólares (o usa la IA) y aquí ves cuánto es en bolivianos al cambio de ${n(cfg.tipoCambio)}.</div>`; return; }
+    if (!p){ box.innerHTML = `<div style="grid-column:1/-1" class="small muted">Pon el precio de Amazon en dólares (o usa la IA) y aquí ves cuánto es en bolivianos al dólar ${cfg.tcModo === "oficial" ? "oficial" : "de mercado"} de ${tc().toFixed(2)}.</div>`; return; }
     box.innerHTML = `<div><span class="small muted">Nuevo en Bs</span><b>${bs(p.nuevoBs)}</b></div>
       <div><span class="small muted">Rápido (fórmula)</span><b>${bs(p.rapido)}</b></div>
       <div><span class="small muted">Normal (fórmula)</span><b>${bs(p.normal)}</b></div>`;
@@ -523,59 +541,156 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     $("phPrev").outerHTML = `<img id="phPrev" alt="Foto del producto" src="${URL.createObjectURL(photoBlob)}">`;
   });
 
-  // ---------- IA ----------
-  let lastAI = null;
-  function renderAI(r){
-    const box = $("aiBox"); box.hidden = false;
-    const conf = {alta:"Seguro", media:"Bastante seguro", baja:"Poco seguro, revisa"}[r.confianza] || "";
-    box.innerHTML = `<div class="row"><b class="grow">${esc(r.nombre || "Producto")}</b>${conf ? `<span class="pill st-publicado">${esc(conf)}</span>` : ""}</div>
-      ${r.precioRapidoBs ? `<div class="num">Sugerido en Bolivia: <b>${bs(r.precioRapidoBs)}</b> rápido · <b>${bs(r.precioNormalBs || 0)}</b> normal</div>` : ""}
-      ${r.demanda ? `<div class="small">Demanda: <b>${esc(r.demanda)}</b>${r.mejorCanal ? " · Mejor canal: <b>" + esc(r.mejorCanal) + "</b>" : ""}</div>` : ""}
-      ${r.consejo ? `<div class="small">${esc(r.consejo)}</div>` : ""}
-      <div class="small muted">Son estimaciones de la IA según lo que conoce, no precios en vivo. Confírmalos con los enlaces de abajo antes de publicar.</div>`;
+  // ---------- Investigación en internet ----------
+  // La IA busca en la web con el conector de búsqueda; los precios salen de anuncios reales, con enlace.
+  let lastAI = null, aiCtl = null;
+  const FALLBACK_SCHEMA = {
+    web_search: {type:"object", properties:{objective:{type:"string", description:"Qué se busca, en lenguaje natural"}, search_queries:{type:"array", items:{type:"string"}, description:"1 a 4 búsquedas cortas"}}, required:["objective"]},
+    web_fetch: {type:"object", properties:{urls:{type:"array", items:{type:"string"}}, objective:{type:"string"}}, required:["urls"]}
+  };
+  let schemaCache = null;
+
+  async function webReady(){
+    if (!mcpApi) return {ok:false, why:"Esta vista no puede usar conectores. Abre la página desde claude.ai con tu sesión iniciada."};
+    try { await mcpApi.server(WEB); }
+    catch (e) {
+      if (e?.code === "server_not_connected" || e?.code === "server_not_found") return {ok:false, why:`Falta conectar "${WEB}" en claude.ai (Ajustes → Conectores). Es gratis y no pide cuenta. Sin él no se pueden buscar precios reales.`};
+      if (e?.code === "needs_reauth") return {ok:false, why:`Vuelve a conectar "${WEB}" en claude.ai (Ajustes → Conectores).`};
+    }
+    return {ok:true};
+  }
+  async function schemas(){
+    if (schemaCache) return schemaCache;
+    const out = {};
+    for (const t of ["web_search","web_fetch"]){
+      try { const d = await mcpApi.describeTool(WEB, t); out[t] = d?.inputSchema?.type === "object" ? d.inputSchema : FALLBACK_SCHEMA[t]; }
+      catch { out[t] = FALLBACK_SCHEMA[t]; }
+    }
+    return (schemaCache = out);
+  }
+  function clip(v, max){
+    let s = typeof v === "string" ? v : JSON.stringify(v);
+    return s.length > max ? s.slice(0, max) + " …[recortado]" : s;
+  }
+  async function webTools(progress){
+    const sc = await schemas();
+    const run = (tool, label) => async (input, ctx) => {
+      const what = Array.isArray(input.search_queries) ? input.search_queries.join(" · ") : (input.objective || (Array.isArray(input.urls) ? input.urls.join(", ") : JSON.stringify(input)));
+      progress(`${label}: ${String(what).slice(0, 140)}`);
+      try {
+        const r = await mcpApi.callTool(WEB, tool, input, {signal:ctx.signal});
+        return clip(r?.payload ?? r?.content?.map(b => b.text || "").join("\n") ?? "", 14000);
+      } catch (e) {
+        if (e?.code === "tool_error" || e?.code === "bad_request") throw new Error((e.message || "argumentos inválidos") + ". Revisa los argumentos según el esquema y reintenta.");
+        throw new Error(e?.message || "La búsqueda falló");
+      }
+    };
+    return [
+      {name:"buscar_web", description:"Busca en internet y devuelve resultados con título, URL y fragmentos de texto. Úsalo para encontrar anuncios y precios reales. Puedes llamarlo varias veces a la vez con búsquedas distintas.", inputSchema:sc.web_search, execute:run("web_search", "Buscando")},
+      {name:"leer_pagina", description:"Lee el contenido de una o más páginas web (URLs) y devuelve su texto. Úsalo para confirmar el precio exacto de un anuncio o ficha de producto encontrado con buscar_web.", inputSchema:sc.web_fetch, execute:run("web_fetch", "Leyendo")}
+    ];
   }
 
+  function aiProgress(msg){
+    const p = $("aiProgress"); p.hidden = !msg;
+    if (!msg) { p.innerHTML = ""; return; }
+    const line = document.createElement("div"); line.className = "small"; line.textContent = "• " + msg; p.appendChild(line);
+  }
+  const CONF = {alta:["Confianza alta","st-vendido"], media:["Confianza media","st-publicado"], baja:["Confianza baja","st-pendiente"]};
+  const linkOr = (u, t) => /^https?:\/\//.test(u || "") ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)} ↗</a>` : esc(t);
+  function renderAI(r){
+    const box = $("aiBox"); box.hidden = false;
+    const c = CONF[r.confianza] || CONF.baja;
+    const comps = (r.comparables || []).filter(x => x && (x.precio || x.precioBs));
+    const rows = comps.map(x => `<tr><td>${esc(x.plataforma || "")}${x.pais ? " · " + esc(x.pais) : ""}</td><td>${esc(x.estado || "")}</td><td class="num">${x.precio ? esc(x.precio) + " " + esc(x.moneda || "") : ""}</td><td class="num"><b>${x.precioBs ? bs(x.precioBs) : ""}</b></td><td>${linkOr(x.url, "ver")}</td></tr>`).join("");
+    box.innerHTML = `<div class="row"><b class="grow">${esc(r.nombre || "Producto")}</b><span class="pill ${c[1]}">${c[0]}</span></div>
+      ${r.motivoConfianza ? `<div class="small">${esc(r.motivoConfianza)}</div>` : ""}
+      ${r.sugerido?.rapidoBs ? `<div class="num">Precio sugerido: <b>${bs(r.sugerido.rapidoBs)}</b> para vender rápido · <b>${bs(r.sugerido.normalBs || 0)}</b> normal</div>` : `<div class="small"><b>No hubo datos suficientes para sugerir un precio.</b></div>`}
+      ${r.sugerido?.explicacion ? `<div class="small">${esc(r.sugerido.explicacion)}</div>` : ""}
+      ${rows ? `<div style="overflow-x:auto"><table class="small" style="border-collapse:collapse;width:100%;min-width:420px"><thead><tr style="text-align:left"><th>Dónde</th><th>Estado</th><th>Precio</th><th>En Bs</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
+      ${r.demanda ? `<div class="small">Demanda en Bolivia: <b>${esc(r.demanda)}</b>${r.mejorCanal ? " · Mejor canal: <b>" + esc(r.mejorCanal) + "</b>" : ""}</div>` : ""}
+      ${r.consejo ? `<div class="small">${esc(r.consejo)}</div>` : ""}
+      <div class="small muted">Investigado el ${esc(r.fecha || "")} con dólar a ${esc(r.tcUsado || "")} Bs. ${comps.length} precios encontrados en internet.</div>`;
+  }
+
+  $("btnStop").onclick = () => aiCtl?.abort();
   $("btnAI").onclick = async () => {
     if (!sampleApi){ toast("La IA no está disponible aquí. Abre la página desde claude.ai."); return; }
     const hasPhoto = !!photoBlob;
     const txt = query();
     if (!hasPhoto && !txt){ toast("Primero saca una foto o escribe el nombre"); return; }
-    const btn = $("btnAI"); btn.disabled = true; btn.textContent = "Analizando… (puede tardar un minuto)";
-    const prompt = `Eres experto en reventa de productos de cajas de devoluciones de Amazon en Bolivia (venta por Facebook Marketplace, WhatsApp y TikTok, ciudad: ${cfg.ciudad}).
-${hasPhoto ? "Mira la foto e identifica el producto exacto (marca, modelo). Lee etiquetas o código de barras si se ven." : ""}
-Datos que escribió el vendedor: nombre/descripción: "${txt}"; código: "${F("fCodigo").value}"; estado: "${ESTADO_TXT[F("fEstado").value]}".
-Tipo de cambio que usa el vendedor: ${n(cfg.tipoCambio)} Bs por 1 USD.
-Estima con tu conocimiento:
-- precio nuevo típico en Amazon USA (USD)
-- precio típico de usado en eBay (USD)
-- precio en bolivianos para vender RÁPIDO (en pocos días) y precio NORMAL en el mercado boliviano. Ten en cuenta que en Bolivia un importado de EEUU vale por lo general más que en eBay usado pero la gente busca ofertas en Marketplace; ajusta por el estado del producto. Redondea a múltiplos de 5.
-Escribe textos de venta en español boliviano natural, cortos y que vendan, mencionando "importado de EEUU" y el estado con honestidad. No inventes accesorios que no se ven.
-Responde SOLO con este JSON:
-{"nombre":"","marca":"","categoria":"","confianza":"alta|media|baja","precioNuevoUSD":0,"precioUsadoUSD":0,"precioRapidoBs":0,"precioNormalBs":0,"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"una frase práctica para venderlo rápido","titulo":"título para Marketplace (máx 70 caracteres)","descripcion":"descripción para Marketplace, 3 a 5 líneas","whatsapp":"mensaje para estado o grupo de WhatsApp con emojis","tiktok":"texto corto para video de TikTok con 4 a 6 hashtags"}`;
+    const web = await webReady();
+    $("webNotice").hidden = web.ok; if (!web.ok){ $("webNotice").textContent = web.why; return; }
+    const btn = $("btnAI"); btn.disabled = true; btn.textContent = "Investigando… (1 a 3 minutos)";
+    $("btnStop").hidden = false; $("aiProgress").innerHTML = ""; aiProgress(hasPhoto ? "Identificando el producto en la foto" : "Preparando la búsqueda");
+    aiCtl = new AbortController();
+    const rate = tc(), hoy = new Date().toLocaleDateString("es-BO");
+    const prompt = `Eres analista de precios para revendedores en Bolivia (ciudad: ${cfg.ciudad}). El producto viene de una caja de devoluciones de Amazon EEUU.
+${hasPhoto ? "1) Identifica el producto exacto en la foto (marca, modelo, variante). Lee etiquetas, texto y código de barras si se ven." : "1) El producto es el que describe el vendedor."}
+Datos del vendedor: nombre: "${txt}"; código: "${F("fCodigo").value}"; estado: "${ESTADO_TXT[F("fEstado").value]}"; cantidad: ${F("fCant").value || 1}.
+Dólar que usa el vendedor: ${rate} Bs por 1 USD (${cfg.tcModo === "oficial" ? "oficial BCB" : "mercado"}). Fecha de hoy: ${hoy}.
+
+2) INVESTIGA EN INTERNET con las herramientas. Sé eficiente: en tu PRIMERA ronda lanza a la vez 3 llamadas a buscar_web:
+   a) precio nuevo en Amazon.com del modelo exacto, y precio de usados VENDIDOS en eBay;
+   b) precio en Bolivia: Facebook Marketplace Bolivia, tiendas bolivianas, grupos o TikTok ("<modelo> precio Bolivia", "<modelo> Santa Cruz" , etc.);
+   c) precio en mercados parecidos: Mercado Libre Perú (.com.pe), Chile (.cl) o Argentina (.com.ar).
+   Si hace falta, en la segunda ronda usa leer_pagina en 1 a 3 URLs para confirmar precios. No hagas más de 3 rondas de herramientas.
+
+3) REGLAS DE CALIDAD:
+   - Solo usa precios que viste en los resultados, cada uno con su URL. NUNCA inventes precios ni URLs. Si no encontraste algo, déjalo en null.
+   - Descarta resultados de otro modelo, accesorios o lotes. Indica si el anuncio es nuevo o usado.
+   - Convierte a Bs: USD × ${rate}. Para soles, pesos chilenos o argentinos usa la tasa de cambio actual que encuentres o tu mejor dato y dilo en "explicacion".
+   - Precio sugerido: el "normal" debe estar cerca de la mediana de los anuncios comparables en Bolivia (si existen) o, si no, del precio en Amazon en Bs ajustado por estado (nuevo sellado ~75-85%, caja abierta ~65-75%, usado ~50-65%, con falla ~30-45%). El "rápido" es 15-25% menos que el normal y nunca menor al precio de usado vendido en eBay en Bs. Redondea a múltiplos de 5 Bs.
+   - confianza "alta": modelo identificado con seguridad y 3 o más precios comparables con URL, al menos 1 de Bolivia o de eBay vendidos. "media": modelo seguro y 1-2 comparables, o solo precio de Amazon. "baja": modelo dudoso o sin precios. Explica el motivo en una frase.
+
+4) Escribe textos de venta en español boliviano natural, honestos con el estado, mencionando "original de EEUU". No inventes accesorios.
+
+Al final responde SOLO con este JSON:
+{"nombre":"","marca":"","modelo":"","categoria":"","confianza":"alta|media|baja","motivoConfianza":"","amazonNuevoUSD":null,"ebayUsadoUSD":null,"comparables":[{"plataforma":"Amazon|eBay vendido|Marketplace|Mercado Libre|Tienda|TikTok|Otro","pais":"","estado":"nuevo|usado","precio":0,"moneda":"USD|BOB|PEN|CLP|ARS","precioBs":0,"url":""}],"sugerido":{"rapidoBs":null,"normalBs":null,"explicacion":""},"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"","titulo":"","descripcion":"","whatsapp":"","tiktok":""}`;
     try{
-      const r = await sampleApi.json(prompt, hasPhoto ? {images:[photoBlob]} : {});
+      const tools = await webTools(aiProgress);
+      const r = await sampleApi.json(prompt, {tools, signal:aiCtl.signal, ...(hasPhoto ? {images:[photoBlob]} : {})});
+      r.fecha = hoy; r.tcUsado = rate.toFixed(2);
+      r.comparables = (r.comparables || []).filter(x => x && /^https?:\/\//.test(x.url || ""));   // sin enlace no cuenta
       lastAI = r;
       if (r.nombre) F("fNombre").value = r.nombre;
-      if (r.marca && !F("fMarca").value) F("fMarca").value = r.marca;
+      if (r.marca || r.modelo) F("fMarca").value = [r.marca, r.modelo].filter(Boolean).join(" ");
       if (r.categoria && !F("fCat").value) F("fCat").value = r.categoria;
-      if (r.precioNuevoUSD) F("fUsd").value = r.precioNuevoUSD;
-      if (r.precioUsadoUSD) F("fUsdUsado").value = r.precioUsadoUSD;
-      if (r.precioRapidoBs) F("fRapido").value = r.precioRapidoBs;
-      if (r.precioNormalBs) F("fNormal").value = r.precioNormalBs;
-      if (!F("fPub").value && r.precioNormalBs) F("fPub").value = r.precioNormalBs;
+      if (r.amazonNuevoUSD) F("fUsd").value = r.amazonNuevoUSD;
+      if (r.ebayUsadoUSD) F("fUsdUsado").value = r.ebayUsadoUSD;
+      if (r.sugerido?.rapidoBs) F("fRapido").value = r.sugerido.rapidoBs;
+      if (r.sugerido?.normalBs){ F("fNormal").value = r.sugerido.normalBs; if (!F("fPub").value) F("fPub").value = r.sugerido.normalBs; }
       const extra = (cfg.entrega ? "\n🚚 " + cfg.entrega : "") + (cfg.telefono ? "\n📲 " + cfg.telefono : "");
       if (r.titulo) F("fTitulo").value = r.titulo;
       if (r.descripcion) F("fDesc").value = r.descripcion + extra;
       if (r.whatsapp) F("fWa").value = r.whatsapp + extra;
       if (r.tiktok) F("fTk").value = r.tiktok;
       renderAI(r); updatePriceBox(); updateLinks();
-      toast("Listo. Revisa y guarda.");
+      toast("Investigación lista. Revisa y guarda.");
     }catch(e){
-      const m = {not_granted:"No diste permiso para usar la IA en esta página.", rate_limited:"Muchas consultas seguidas. Espera un minuto.", image_rejected:"La foto no se pudo usar. Prueba con otra.", invalid_json:"La IA respondió raro. Toca de nuevo.", cancelled:""}[e?.code];
-      if (m !== "") toast(m || "No se pudo consultar a la IA. Intenta de nuevo.");
+      const m = {not_granted:"Hace falta que permitas la IA y el buscador en esta página.", rate_limited:"Muchas consultas seguidas. Espera un minuto.", image_rejected:"La foto no se pudo usar. Prueba con otra.", invalid_json:"La respuesta llegó incompleta. Toca de nuevo.", tools_unavailable:"Esta vista no permite que la IA use el buscador.", cancelled:"Investigación detenida"}[e?.code];
+      toast(m || "No se pudo completar la investigación. Intenta de nuevo.");
     }finally{
-      btn.disabled = false; btn.textContent = "Identificar y poner precio con IA";
+      btn.disabled = false; btn.textContent = "Investigar precio en internet"; $("btnStop").hidden = true; aiCtl = null;
     }
+  };
+
+  // Dólar de hoy: busca el oficial del BCB y el de mercado (USDT)
+  $("btnTc").onclick = async () => {
+    if (!sampleApi){ toast("La IA no está disponible aquí"); return; }
+    const web = await webReady(); if (!web.ok){ toast(web.why); return; }
+    const b = $("btnTc"); b.disabled = true; b.textContent = "Buscando el dólar de hoy…";
+    try{
+      const tools = await webTools(() => {});
+      const hoy = new Date().toLocaleDateString("es-BO");
+      const r = await sampleApi.json(`Hoy es ${hoy}. Busca en internet, en UNA sola ronda con 2 llamadas a buscar_web a la vez: (1) el tipo de cambio oficial del dólar publicado hoy por el Banco Central de Bolivia (bcb.gob.bo); (2) la cotización actual del dólar USDT/BOB en Bolivia (Binance P2P o un monitor cambiario). Usa solo números que veas en los resultados. Responde SOLO con JSON: {"oficial":0,"mercado":0,"fecha":"dd/mm/aaaa","fuentes":"nombre de los sitios"} y pon null en lo que no encuentres.`, {tools});
+      const of = n(r.oficial), mk = n(r.mercado);
+      if (!(of > 5 && of < 40) && !(mk > 5 && mk < 40)) throw new Error("sin datos");
+      const data = {...cfg, tcOficial: of > 5 && of < 40 ? of : cfg.tcOficial, tcMercado: mk > 5 && mk < 40 ? mk : cfg.tcMercado, tcFecha: r.fecha || hoy, tcFuente: r.fuentes || "búsqueda web"};
+      await store.saveCfg(data);
+      toast(`Dólar actualizado: oficial ${data.tcOficial} · mercado ${data.tcMercado}`);
+    }catch{ toast("No se pudo actualizar el dólar. Puedes escribirlo a mano."); }
+    finally{ b.disabled = false; b.textContent = "Actualizar dólar con datos de hoy"; }
   };
 
   // ---------- Copiar textos ----------
@@ -630,12 +745,18 @@ Responde SOLO con este JSON:
 
   // ---------- Ajustes ----------
   function fillCfg(){
-    $("cCosto").value = cfg.costoCaja; $("cTc").value = cfg.tipoCambio; $("cCiudad").value = cfg.ciudad;
+    $("cCosto").value = cfg.costoCaja; $("cTcOf").value = cfg.tcOficial; $("cTcMk").value = cfg.tcMercado; $("cTcModo").value = cfg.tcModo || "mercado";
+    $("tcInfo").textContent = `Última actualización: ${cfg.tcFecha || "sin fecha"}. Fuente: ${cfg.tcFuente || "manual"}.`;
+    $("cCiudad").value = cfg.ciudad;
     $("cTel").value = cfg.telefono || ""; $("cEntrega").value = cfg.entrega || "";
   }
   $("cfgForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const data = {costoCaja:n($("cCosto").value) || 0, tipoCambio:n($("cTc").value) || DEFAULT_CFG.tipoCambio, ciudad:$("cCiudad").value, telefono:$("cTel").value.trim(), entrega:$("cEntrega").value.trim()};
+    const changedTc = n($("cTcOf").value) !== n(cfg.tcOficial) || n($("cTcMk").value) !== n(cfg.tcMercado);
+    const data = {costoCaja:n($("cCosto").value) || 0,
+      tcOficial:n($("cTcOf").value) || DEFAULT_CFG.tcOficial, tcMercado:n($("cTcMk").value) || DEFAULT_CFG.tcMercado, tcModo:$("cTcModo").value,
+      tcFecha: changedTc ? new Date().toLocaleDateString("es-BO") : cfg.tcFecha, tcFuente: changedTc ? "ingresado a mano" : cfg.tcFuente,
+      ciudad:$("cCiudad").value, telefono:$("cTel").value.trim(), entrega:$("cEntrega").value.trim()};
     try{ await store.saveCfg(data); toast("Ajustes guardados"); show("resumen"); }
     catch{ toast("No se pudieron guardar los ajustes"); }
   });
@@ -651,11 +772,11 @@ Responde SOLO con este JSON:
   (async () => {
     const C = window.claude;
     if (!C?.use){ showNotice("Estás viendo una copia sin conexión: los datos se guardan solo en este teléfono y la IA no está disponible."); return; }
-    const [db, sample, assets, downloads] = await Promise.all(["db","sample","assets","downloads"].map(k => C.use(k).catch(() => null)));
-    sampleApi = sample; assetsApi = assets; downloadsApi = downloads;
+    const [db, sample, assets, downloads, mcp, perms] = await Promise.all(["db","sample","assets","downloads","mcp","permissions"].map(k => C.use(k).catch(() => null)));
+    sampleApi = sample; assetsApi = assets; downloadsApi = downloads; mcpApi = mcp; permApi = perms;
     if (db) store.attachDb(db);
     else showNotice("Inicia sesión en claude.ai para guardar el inventario en la nube. Por ahora se guarda solo en este teléfono.");
-    if (!sample) $("btnAI").hidden = true;
+    if (!sample){ $("btnAI").hidden = true; $("btnTc").hidden = true; }
   })();
 })();
 </script>
