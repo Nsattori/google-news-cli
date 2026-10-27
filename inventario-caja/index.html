@@ -1,0 +1,661 @@
+<title>Caja Amazon Bolivia</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: app de una columna para el móvil; cabecera fija con pestañas, tarjetas solo donde marcan un objeto (producto, total). */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#14202e; --muted:#5b6878; --line:#d5dbe3;
+  --tape:#e9a400; --tape-ink:#2a1d00; --accent:#1f5f8b;
+  --ok:#1d7a46; --ok-bg:#dff3e7; --warn:#9a5b00; --warn-bg:#fdf0d4; --idle:#4d5a69; --idle-bg:#e4e8ee; --bad:#b3261e;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f151c; --surface:#18212b; --ink:#e6ebf1; --muted:#9aa7b6; --line:#2a3542;
+  --tape:#f0b429; --tape-ink:#231800; --accent:#6fb3e3;
+  --ok:#6fd39a; --ok-bg:#16301f; --warn:#f3c26b; --warn-bg:#352708; --idle:#b5c0cc; --idle-bg:#24303c; --bad:#ff8a80; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151c; --surface:#18212b; --ink:#e6ebf1; --muted:#9aa7b6; --line:#2a3542;
+  --tape:#f0b429; --tape-ink:#231800; --accent:#6fb3e3;
+  --ok:#6fd39a; --ok-bg:#16301f; --warn:#f3c26b; --warn-bg:#352708; --idle:#b5c0cc; --idle-bg:#24303c; --bad:#ff8a80; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);color:var(--bg)}
+header .wrap{padding-block:12px 0}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font-family:var(--display);font-weight:800;font-size:1.3rem;margin:0;letter-spacing:-.01em}
+.tape{background:var(--tape);color:var(--tape-ink);font-weight:700;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;transform:rotate(-2deg)}
+nav{display:flex;gap:4px;margin-top:10px;overflow-x:auto}
+nav button{flex:1;background:none;border:0;color:inherit;opacity:.7;font:inherit;font-weight:700;padding:10px 6px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+nav button[aria-current="true"]{opacity:1;border-bottom-color:var(--tape)}
+main .wrap{padding-block:18px 60px;display:flex;flex-direction:column;gap:18px}
+h2{font-family:var(--display);font-weight:800;font-size:1.25rem;margin:0;text-wrap:balance}
+h3{font-family:var(--display);font-weight:600;font-size:1.05rem;margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;min-width:0}
+.kpi .lbl{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi .val{font-family:var(--display);font-weight:800;font-size:1.45rem;font-variant-numeric:tabular-nums}
+.kpi.hl{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.kpi.hl .lbl{color:inherit;opacity:.75}
+.bar{height:12px;background:var(--idle-bg);border-radius:6px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--ok);width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+button,.btn{font:inherit;font-weight:700;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button.primary{background:var(--tape);border-color:var(--tape);color:var(--tape-ink)}
+button.dark{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+button.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+button:disabled{opacity:.55;cursor:wait}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;font-weight:700;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;font-weight:400;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%;min-width:0}
+textarea{min-height:84px;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:420px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.st-pendiente{background:var(--idle-bg);color:var(--idle)}
+.st-publicado{background:var(--warn-bg);color:var(--warn)}
+.st-vendido{background:var(--ok-bg);color:var(--ok)}
+.filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.filters button{padding:7px 12px;font-size:.9rem;border-radius:999px;white-space:nowrap}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.items{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;cursor:pointer;text-align:left;width:100%;font-weight:400}
+.thumb{width:64px;height:64px;border-radius:8px;background:var(--idle-bg);object-fit:cover;display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--display);font-weight:800;font-size:1.3rem;overflow:hidden}
+.item .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .pr{font-family:var(--display);font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.empty{border:2px dashed var(--line);border-radius:var(--r);padding:24px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.photo{display:flex;gap:12px;align-items:center}
+.photo img,.photo .thumb{width:96px;height:96px;border-radius:10px;object-fit:cover}
+.ai{border-left:4px solid var(--tape);background:var(--bg);padding:12px;border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:6px}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{font-size:.9rem;padding:8px 12px;color:var(--accent);border-color:var(--line)}
+.price-box{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.price-box div{background:var(--bg);border-radius:8px;padding:10px;min-width:0}
+.price-box b{display:block;font-family:var(--display);font-size:1.15rem;font-variant-numeric:tabular-nums}
+.copy-block{display:flex;flex-direction:column;gap:6px}
+.copy-block pre{white-space:pre-wrap;word-break:break-word;font-family:var(--body);background:var(--bg);border-radius:8px;padding:10px;margin:0;font-size:.92rem}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;z-index:20;max-width:calc(100% - 32px)}
+.notice{background:var(--warn-bg);color:var(--warn);padding:10px 12px;border-radius:8px;font-size:.9rem}
+ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+@media (prefers-reduced-motion: no-preference){.bar>i{transition:width .5s ease}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="tape">Caja</span><h1>Caja Amazon Bolivia</h1></div>
+    <nav id="nav">
+      <button data-view="resumen" aria-current="true">Resumen</button>
+      <button data-view="inventario">Inventario</button>
+      <button data-view="editor" id="navAdd">+ Agregar</button>
+      <button data-view="ajustes">Ajustes</button>
+    </nav>
+  </div>
+</header>
+
+<main><div class="wrap">
+
+  <p class="notice" id="storeNotice" hidden></p>
+
+  <!-- RESUMEN -->
+  <section id="v-resumen" class="view" style="display:flex;flex-direction:column;gap:18px">
+    <div class="kpis">
+      <div class="kpi hl"><div class="lbl">Pagaste por la caja</div><div class="val" id="kCosto">Bs 1.600</div></div>
+      <div class="kpi"><div class="lbl">Ya vendido</div><div class="val" id="kVendido">Bs 0</div></div>
+      <div class="kpi"><div class="lbl">Valor por vender</div><div class="val" id="kPorVender">Bs 0</div></div>
+      <div class="kpi"><div class="lbl">Ganancia hasta hoy</div><div class="val" id="kGanancia">Bs −1.600</div></div>
+    </div>
+    <div class="card">
+      <div class="row"><h3 class="grow">Recuperar la inversión</h3><span class="num small muted" id="kPct">0%</span></div>
+      <div class="bar"><i id="kBar"></i></div>
+      <p class="small muted" id="kFalta">Te faltan Bs 1.600 para recuperar lo que pagaste.</p>
+      <div class="grid3 small">
+        <div><span class="pill st-pendiente">Sin publicar</span><div class="num" id="cPend">0</div></div>
+        <div><span class="pill st-publicado">Publicado</span><div class="num" id="cPub">0</div></div>
+        <div><span class="pill st-vendido">Vendido</span><div class="num" id="cVend">0</div></div>
+      </div>
+      <p class="small muted" id="kCostoUnit"></p>
+    </div>
+    <div class="card">
+      <h3>Publica primero estos</h3>
+      <p class="small muted">Los productos de más valor que aún no están publicados. Venderlos primero te devuelve la plata más rápido.</p>
+      <div class="items" id="topList"></div>
+    </div>
+    <div class="card">
+      <h3>Cómo vender rápido</h3>
+      <ol class="tips small">
+        <li>Saca foto, toca <b>Identificar con IA</b> y revisa el precio con los enlaces.</li>
+        <li>Publica el mismo día en Marketplace, tu estado de WhatsApp y un video corto en TikTok.</li>
+        <li>Usa el <b>precio rápido</b> si quieres vender en días, el <b>normal</b> si puedes esperar.</li>
+        <li>Lo que no se vende en 7 días, bájalo 10–15% o arma un combo.</li>
+        <li>Copia el catálogo de WhatsApp desde Inventario y mándalo a tus grupos.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- INVENTARIO -->
+  <section id="v-inventario" class="view" hidden style="flex-direction:column;gap:14px">
+    <div class="row"><h2 class="grow">Inventario</h2><button class="primary" id="btnAdd2">+ Agregar</button></div>
+    <input id="q" type="search" placeholder="Buscar por nombre, marca o código">
+    <div class="filters" id="filters">
+      <button data-f="todos" aria-pressed="true">Todos</button>
+      <button data-f="pendiente" aria-pressed="false">Sin publicar</button>
+      <button data-f="publicado" aria-pressed="false">Publicado</button>
+      <button data-f="vendido" aria-pressed="false">Vendido</button>
+    </div>
+    <div class="items" id="list"></div>
+    <div class="card">
+      <h3>Catálogo para WhatsApp</h3>
+      <p class="small muted">Lista de todo lo disponible con precio, lista para pegar en un grupo o en tu estado.</p>
+      <div class="row"><button class="dark" id="btnCatalog">Copiar catálogo</button><button id="btnCsv">Descargar Excel (CSV)</button></div>
+    </div>
+  </section>
+
+  <!-- EDITOR -->
+  <section id="v-editor" class="view" hidden style="flex-direction:column;gap:14px">
+    <div class="row"><h2 class="grow" id="edTitle">Agregar producto</h2><button id="btnBack">Volver</button></div>
+    <form id="form" class="card" novalidate>
+      <div class="photo">
+        <div class="thumb" id="phPrev">📦</div>
+        <div class="grow" style="display:flex;flex-direction:column;gap:8px">
+          <label for="fPhoto" class="btn" style="flex-direction:row;color:var(--ink);font-size:1rem">Tomar o elegir foto</label>
+          <input id="fPhoto" type="file" accept="image/*" capture="environment" hidden>
+          <span class="small muted">Saca la foto con la etiqueta o el código de barras visible.</span>
+        </div>
+      </div>
+      <button type="button" class="primary" id="btnAI">Identificar y poner precio con IA</button>
+      <div class="ai" id="aiBox" hidden></div>
+
+      <label for="fNombre">Producto<input id="fNombre" placeholder="Ej: Audífonos Bluetooth JBL Tune 510BT"></label>
+      <div class="grid2">
+        <label for="fMarca">Marca / modelo<input id="fMarca"></label>
+        <label for="fCodigo">Código (UPC / ASIN)<input id="fCodigo" inputmode="numeric"></label>
+      </div>
+      <div class="grid2">
+        <label for="fEstado">Estado
+          <select id="fEstado">
+            <option value="nuevo">Nuevo sellado</option>
+            <option value="abierto">Nuevo, caja abierta</option>
+            <option value="usado">Usado, buen estado</option>
+            <option value="detalle">Con detalle o falla</option>
+          </select></label>
+        <label for="fCant">Cantidad<input id="fCant" type="number" min="1" value="1" inputmode="numeric"></label>
+      </div>
+      <label for="fCat">Categoría<input id="fCat" placeholder="Electrónica, hogar, juguetes…"></label>
+
+      <h3>Precio</h3>
+      <div class="grid2">
+        <label for="fUsd">Precio nuevo en Amazon (USD)<input id="fUsd" type="number" step="0.01" inputmode="decimal"></label>
+        <label for="fUsdUsado">Usado en eBay (USD)<input id="fUsdUsado" type="number" step="0.01" inputmode="decimal"></label>
+      </div>
+      <div class="price-box" id="priceBox"></div>
+      <div class="grid2">
+        <label for="fRapido">Precio rápido (Bs)<input id="fRapido" type="number" inputmode="numeric"></label>
+        <label for="fNormal">Precio normal (Bs)<input id="fNormal" type="number" inputmode="numeric"></label>
+      </div>
+      <div class="links" id="links"></div>
+
+      <h3>Venta</h3>
+      <div class="grid2">
+        <label for="fStatus">Situación
+          <select id="fStatus">
+            <option value="pendiente">Sin publicar</option>
+            <option value="publicado">Publicado</option>
+            <option value="vendido">Vendido</option>
+          </select></label>
+        <label for="fPub">Precio publicado (Bs)<input id="fPub" type="number" inputmode="numeric"></label>
+      </div>
+      <div class="row small" id="chans">
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" value="WhatsApp" style="width:auto" id="chW">WhatsApp</label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" value="Marketplace" style="width:auto" id="chM">Marketplace</label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" value="TikTok" style="width:auto" id="chT">TikTok</label>
+      </div>
+      <label for="fVendido" id="lblVendido" hidden>Vendido en (Bs, total)<input id="fVendido" type="number" inputmode="numeric"></label>
+
+      <h3>Textos para publicar</h3>
+      <label for="fTitulo">Título (Marketplace)<input id="fTitulo"></label>
+      <label for="fDesc">Descripción (Marketplace)<textarea id="fDesc"></textarea></label>
+      <label for="fWa">Mensaje WhatsApp<textarea id="fWa"></textarea></label>
+      <label for="fTk">Texto TikTok<textarea id="fTk"></textarea></label>
+      <div class="row">
+        <button type="button" id="cpMk">Copiar Marketplace</button>
+        <button type="button" id="cpWa">Copiar WhatsApp</button>
+        <button type="button" id="cpTk">Copiar TikTok</button>
+      </div>
+      <label for="fNotas">Notas<textarea id="fNotas" placeholder="Falta el cargador, comprador interesado, etc."></textarea></label>
+
+      <div class="row">
+        <button type="submit" class="dark grow" id="btnSave">Guardar</button>
+        <button type="button" class="danger" id="btnDel" hidden>Borrar</button>
+      </div>
+      <div class="row" id="delConfirm" hidden>
+        <span class="small grow">¿Borrar este producto para siempre?</span>
+        <button type="button" class="danger" id="btnDelYes">Sí, borrar</button>
+        <button type="button" id="btnDelNo">No</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- AJUSTES -->
+  <section id="v-ajustes" class="view" hidden style="flex-direction:column;gap:14px">
+    <h2>Ajustes</h2>
+    <form class="card" id="cfgForm" novalidate>
+      <label for="cCosto">Lo que pagaste por la caja (Bs)<input id="cCosto" type="number" inputmode="numeric"></label>
+      <label for="cTc">Tipo de cambio: Bs por 1 dólar<input id="cTc" type="number" step="0.01" inputmode="decimal"></label>
+      <p class="small muted">Pon el dólar al que se mueve tu mercado. Si los vendedores de importados en tu ciudad cobran al paralelo, usa ese valor y no el oficial.</p>
+      <div class="grid2">
+        <label for="cCiudad">Ciudad
+          <select id="cCiudad"><option>Santa Cruz</option><option>La Paz</option><option>El Alto</option><option>Cochabamba</option><option>Sucre</option><option>Tarija</option><option>Oruro</option><option>Potosí</option><option>Otra</option></select></label>
+        <label for="cTel">Tu WhatsApp (para los textos)<input id="cTel" inputmode="tel" placeholder="Ej: 7xxxxxxx"></label>
+      </div>
+      <label for="cEntrega">Entrega / punto de encuentro<input id="cEntrega" placeholder="Ej: Entrega en el 2do anillo o envío por flota"></label>
+      <button type="submit" class="dark">Guardar ajustes</button>
+    </form>
+  </section>
+
+</div></main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const ESTADO_TXT = {nuevo:"Nuevo sellado", abierto:"Nuevo, caja abierta", usado:"Usado, buen estado", detalle:"Con detalle"};
+  const ESTADO_F = {nuevo:1, abierto:0.9, usado:0.75, detalle:0.5};
+  const STATUS_TXT = {pendiente:"Sin publicar", publicado:"Publicado", vendido:"Vendido"};
+  const DEFAULT_CFG = {costoCaja:1600, tipoCambio:6.96, ciudad:"Santa Cruz", telefono:"", entrega:""};
+
+  let cfg = {...DEFAULT_CFG};
+  let items = [];
+  let filter = "todos";
+  let editing = null;          // id del producto que se edita, o null si es nuevo
+  let photoBlob = null;        // foto nueva sin subir
+  let photoUrl = "";           // url de la foto guardada
+  let assetsApi = null, sampleApi = null, downloadsApi = null;
+
+  // ---------- Guardado: base compartida si está disponible, si no en este teléfono ----------
+  const local = {
+    read(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+    write(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+  };
+  const store = {
+    db:null,
+    itemsCb:null, cfgCb:null,
+    subscribe(itemsCb, cfgCb){
+      this.itemsCb = itemsCb; this.cfgCb = cfgCb;
+      itemsCb(local.read("cajaItems", [])); cfgCb(local.read("cajaCfg", {}));
+    },
+    attachDb(db){
+      this.db = db;
+      db.collection("items").onSnapshot(s => this.itemsCb(s.docs.map(d => ({id:d.id, ...d.data()}))), e => showNotice("No se pudo leer el inventario: " + e.message));
+      db.doc("config/main").onSnapshot(s => this.cfgCb(s.exists ? s.data() : {}), () => {});
+    },
+    async saveItem(id, data){
+      if (this.db){
+        if (id){ await this.db.collection("items").doc(id).set(data); return id; }
+        const ref = await this.db.collection("items").add(data); return ref.id;
+      }
+      const all = local.read("cajaItems", []);
+      if (!id){ id = "i" + Date.now().toString(36); all.push({id, ...data}); }
+      else { const i = all.findIndex(x => x.id === id); if (i >= 0) all[i] = {id, ...data}; else all.push({id, ...data}); }
+      local.write("cajaItems", all); this.itemsCb(all); return id;
+    },
+    async deleteItem(id){
+      if (this.db){ await this.db.collection("items").doc(id).delete(); return; }
+      const all = local.read("cajaItems", []).filter(x => x.id !== id);
+      local.write("cajaItems", all); this.itemsCb(all);
+    },
+    async saveCfg(data){
+      if (this.db){ await this.db.doc("config/main").set(data); return; }
+      local.write("cajaCfg", data); this.cfgCb(data);
+    }
+  };
+
+  // ---------- Utilidades ----------
+  const n = (v) => { const x = parseFloat(v); return isFinite(x) ? x : 0; };
+  const bs = (v) => "Bs " + Math.round(v).toLocaleString("es-BO");
+  const round5 = (v) => Math.max(5, Math.round(v / 5) * 5);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  let toastT;
+  function toast(msg){ const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
+  function showNotice(msg){ const el = $("storeNotice"); el.textContent = msg; el.hidden = !msg; }
+  async function copy(text, btn){
+    try { await navigator.clipboard.writeText(text); toast("Copiado"); }
+    catch {
+      const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast("Copiado"); } catch { toast("Mantén presionado el texto para copiarlo"); }
+      ta.remove();
+    }
+  }
+  const units = (it) => Math.max(1, Math.round(n(it.cantidad) || 1));
+  const askPrice = (it) => n(it.precioPublicadoBs) || n(it.precioNormalBs) || n(it.precioRapidoBs);
+
+  // Precio de referencia calculado sin IA: dólar × tipo de cambio × estado
+  function formulaPrices(usd, estado){
+    if (!usd) return null;
+    const nuevoBs = usd * n(cfg.tipoCambio);
+    const f = ESTADO_F[estado] ?? 1;
+    return {nuevoBs, rapido: round5(nuevoBs * 0.55 * f), normal: round5(nuevoBs * 0.75 * f)};
+  }
+
+  // ---------- Navegación ----------
+  function show(view){
+    document.querySelectorAll(".view").forEach(s => { const on = s.id === "v-" + view; s.hidden = !on; if (on) s.style.display = "flex"; });
+    document.querySelectorAll("#nav button").forEach(b => b.setAttribute("aria-current", String(b.dataset.view === view)));
+    window.scrollTo(0, 0);
+  }
+  $("nav").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.view === "editor") openEditor(null); else show(b.dataset.view);
+  });
+  $("btnAdd2").onclick = () => openEditor(null);
+  $("btnBack").onclick = () => show("inventario");
+
+  // ---------- Resumen ----------
+  function renderSummary(){
+    const costo = n(cfg.costoCaja);
+    let vendido = 0, porVender = 0, c = {pendiente:0, publicado:0, vendido:0}, totalUnits = 0;
+    for (const it of items){
+      const st = it.status || "pendiente"; c[st] = (c[st] || 0) + 1; totalUnits += units(it);
+      if (st === "vendido") vendido += n(it.precioVendidoBs) || askPrice(it) * units(it);
+      else porVender += askPrice(it) * units(it);
+    }
+    $("kCosto").textContent = bs(costo);
+    $("kVendido").textContent = bs(vendido);
+    $("kPorVender").textContent = bs(porVender);
+    const gan = vendido - costo;
+    $("kGanancia").textContent = (gan < 0 ? "Bs −" + Math.abs(Math.round(gan)).toLocaleString("es-BO") : bs(gan));
+    const pct = costo ? Math.min(100, vendido / costo * 100) : 0;
+    $("kPct").textContent = Math.round(pct) + "%";
+    $("kBar").style.width = pct + "%";
+    $("kFalta").textContent = vendido >= costo
+      ? "Ya recuperaste lo que pagaste. Todo lo que vendas ahora es ganancia."
+      : "Te faltan " + bs(costo - vendido) + " para recuperar lo que pagaste. Si vendes todo a tu precio, terminarías con " + bs(vendido + porVender) + ".";
+    $("cPend").textContent = c.pendiente; $("cPub").textContent = c.publicado; $("cVend").textContent = c.vendido;
+    $("kCostoUnit").textContent = totalUnits ? `Llevas ${totalUnits} unidades cargadas: cada una te costó en promedio ${bs(costo / totalUnits)}. No vendas nada por debajo de eso si puedes evitarlo.` : "";
+    const top = items.filter(it => (it.status || "pendiente") === "pendiente").sort((a,b) => askPrice(b) - askPrice(a)).slice(0, 5);
+    const tl = $("topList"); tl.innerHTML = "";
+    if (!top.length) tl.innerHTML = `<p class="small muted">${items.length ? "Todo lo cargado ya está publicado o vendido." : "Aún no cargaste productos."}</p>`;
+    top.forEach(it => tl.appendChild(itemRow(it)));
+  }
+
+  // ---------- Inventario ----------
+  function itemRow(it){
+    const b = document.createElement("button"); b.type = "button"; b.className = "item";
+    const st = it.status || "pendiente";
+    const price = st === "vendido" ? (n(it.precioVendidoBs) || askPrice(it)) : askPrice(it);
+    const initial = esc((it.nombre || "?").trim().charAt(0).toUpperCase());
+    b.innerHTML = `${it.fotoUrl ? `<img class="thumb" alt="" src="${esc(it.fotoUrl)}">` : `<div class="thumb">${initial}</div>`}
+      <div style="min-width:0"><div class="nm">${esc(it.nombre || "Sin nombre")}</div>
+      <div class="small muted">${esc(ESTADO_TXT[it.estado] || "")}${units(it) > 1 ? " · x" + units(it) : ""}</div>
+      <span class="pill st-${st}">${STATUS_TXT[st]}</span></div>
+      <div class="pr">${price ? bs(price) : "<span class='small muted'>sin precio</span>"}</div>`;
+    b.onclick = () => openEditor(it.id);
+    return b;
+  }
+  function renderList(){
+    const q = $("q").value.trim().toLowerCase();
+    const list = $("list"); list.innerHTML = "";
+    const rows = items
+      .filter(it => filter === "todos" || (it.status || "pendiente") === filter)
+      .filter(it => !q || [it.nombre, it.marca, it.codigo, it.categoria].join(" ").toLowerCase().includes(q))
+      .sort((a,b) => (b.creado || 0) - (a.creado || 0));
+    if (!rows.length){
+      list.innerHTML = items.length
+        ? `<p class="muted small">Nada coincide con este filtro.</p>`
+        : `<div class="empty"><h3>Tu caja está vacía aquí</h3><p class="small muted">Saca la primera foto de un producto y la IA te dice qué es y a cuánto venderlo.</p><button class="primary" type="button" id="emptyAdd">Agregar el primer producto</button></div>`;
+      const ea = $("emptyAdd"); if (ea) ea.onclick = () => openEditor(null);
+      return;
+    }
+    rows.forEach(it => list.appendChild(itemRow(it)));
+  }
+  $("q").addEventListener("input", renderList);
+  $("filters").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    filter = b.dataset.f;
+    $("filters").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    renderList();
+  });
+
+  $("btnCatalog").onclick = () => {
+    const disp = items.filter(it => (it.status || "pendiente") !== "vendido" && askPrice(it));
+    if (!disp.length){ toast("No hay productos disponibles con precio"); return; }
+    const lines = disp.sort((a,b) => askPrice(b) - askPrice(a)).map(it => `▪️ ${it.nombre} (${ESTADO_TXT[it.estado] || ""}) — ${bs(askPrice(it))}`);
+    const txt = `📦 *Productos importados de Amazon USA*\n📍 ${cfg.ciudad}\n\n${lines.join("\n")}\n\n${cfg.entrega ? "🚚 " + cfg.entrega + "\n" : ""}${cfg.telefono ? "📲 Pedidos al " + cfg.telefono + "\n" : ""}Precios en bolivianos. Escríbeme por lo que te interese.`;
+    copy(txt);
+  };
+
+  $("btnCsv").onclick = async () => {
+    const head = ["Producto","Marca","Codigo","Categoria","Estado","Cantidad","Amazon USD","Usado USD","Rapido Bs","Normal Bs","Publicado Bs","Situacion","Vendido Bs","Canales","Notas"];
+    const q = (v) => `"${String(v ?? "").replace(/"/g,'""')}"`;
+    const rows = items.map(it => [it.nombre,it.marca,it.codigo,it.categoria,ESTADO_TXT[it.estado],units(it),it.precioUsd,it.precioUsadoUsd,it.precioRapidoBs,it.precioNormalBs,it.precioPublicadoBs,STATUS_TXT[it.status||"pendiente"],it.precioVendidoBs,(it.canales||[]).join(" / "),it.notas].map(q).join(","));
+    const csv = "﻿" + [head.map(q).join(","), ...rows].join("\n");
+    if (!downloadsApi){ copy(csv); toast("Copiado como texto (descarga no disponible aquí)"); return; }
+    try { await downloadsApi.save({filename:"inventario-caja-amazon.csv", data:new Blob([csv], {type:"text/csv"})}); }
+    catch (e) { if (e?.code !== "cancelled" && e?.code !== "declined") toast("No se pudo descargar"); }
+  };
+
+  // ---------- Editor ----------
+  const F = (id) => $(id);
+  function setForm(it){
+    F("fNombre").value = it.nombre || ""; F("fMarca").value = it.marca || ""; F("fCodigo").value = it.codigo || "";
+    F("fEstado").value = it.estado || "nuevo"; F("fCant").value = it.cantidad || 1; F("fCat").value = it.categoria || "";
+    F("fUsd").value = it.precioUsd || ""; F("fUsdUsado").value = it.precioUsadoUsd || "";
+    F("fRapido").value = it.precioRapidoBs || ""; F("fNormal").value = it.precioNormalBs || "";
+    F("fStatus").value = it.status || "pendiente"; F("fPub").value = it.precioPublicadoBs || "";
+    F("fVendido").value = it.precioVendidoBs || "";
+    F("fTitulo").value = it.titulo || ""; F("fDesc").value = it.descripcion || ""; F("fWa").value = it.whatsapp || ""; F("fTk").value = it.tiktok || "";
+    F("fNotas").value = it.notas || "";
+    ["chW","chM","chT"].forEach(id => F(id).checked = (it.canales || []).includes(F(id).value));
+    photoUrl = it.fotoUrl || ""; photoBlob = null;
+    $("phPrev").outerHTML = photoUrl ? `<img id="phPrev" alt="Foto del producto" src="${esc(photoUrl)}">` : `<div class="thumb" id="phPrev">📦</div>`;
+    const ai = $("aiBox"); ai.hidden = !it.ia; if (it.ia) renderAI(it.ia);
+    updatePriceBox(); updateLinks(); toggleSold();
+  }
+  function openEditor(id){
+    editing = id;
+    const it = id ? items.find(x => x.id === id) : null;
+    $("edTitle").textContent = it ? "Editar producto" : "Agregar producto";
+    $("btnDel").hidden = !it; $("delConfirm").hidden = true;
+    setForm(it || {});
+    lastAI = it?.ia || null;
+    show("editor");
+  }
+  function toggleSold(){ $("lblVendido").hidden = F("fStatus").value !== "vendido"; }
+  F("fStatus").addEventListener("change", () => {
+    toggleSold();
+    if (F("fStatus").value === "vendido" && !F("fVendido").value) F("fVendido").value = (n(F("fPub").value) || n(F("fNormal").value)) * Math.max(1, n(F("fCant").value)) || "";
+  });
+
+  function updatePriceBox(){
+    const usd = n(F("fUsd").value), est = F("fEstado").value;
+    const p = formulaPrices(usd, est);
+    const box = $("priceBox");
+    if (!p){ box.innerHTML = `<div style="grid-column:1/-1" class="small muted">Pon el precio de Amazon en dólares (o usa la IA) y aquí ves cuánto es en bolivianos al cambio de ${n(cfg.tipoCambio)}.</div>`; return; }
+    box.innerHTML = `<div><span class="small muted">Nuevo en Bs</span><b>${bs(p.nuevoBs)}</b></div>
+      <div><span class="small muted">Rápido (fórmula)</span><b>${bs(p.rapido)}</b></div>
+      <div><span class="small muted">Normal (fórmula)</span><b>${bs(p.normal)}</b></div>`;
+  }
+  ["fUsd","fEstado"].forEach(id => F(id).addEventListener("input", updatePriceBox));
+
+  function query(){ return (F("fNombre").value || F("fMarca").value || F("fCodigo").value).trim(); }
+  function updateLinks(){
+    const q = query(); const box = $("links");
+    if (!q){ box.innerHTML = `<span class="small muted">Escribe el nombre para ver enlaces de comparación.</span>`; return; }
+    const e = encodeURIComponent(q), dash = encodeURIComponent(q.replace(/\s+/g, "-"));
+    const L = [
+      ["Amazon (nuevo)", `https://www.amazon.com/s?k=${e}`],
+      ["eBay vendidos", `https://www.ebay.com/sch/i.html?_nkw=${e}&LH_Sold=1&LH_Complete=1`],
+      ["Marketplace", `https://www.facebook.com/marketplace/search/?query=${e}`],
+      ["Mercado Libre Perú", `https://listado.mercadolibre.com.pe/${dash}`],
+      ["Mercado Libre Chile", `https://listado.mercadolibre.cl/${dash}`],
+      ["Mercado Libre Argentina", `https://listado.mercadolibre.com.ar/${dash}`],
+      ["Google Bolivia", `https://www.google.com/search?q=${encodeURIComponent(q + " precio Bolivia")}`],
+      ["TikTok", `https://www.tiktok.com/search?q=${e}`]
+    ];
+    box.innerHTML = L.map(([t,u]) => `<a class="btn" href="${u}" target="_blank" rel="noopener">${t} ↗</a>`).join("");
+  }
+  ["fNombre","fMarca","fCodigo"].forEach(id => F(id).addEventListener("input", updateLinks));
+
+  // Foto: se achica antes de guardarla o mandarla a la IA
+  async function shrink(file){
+    const url = URL.createObjectURL(file);
+    try{
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const max = 1100, s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise(res => c.toBlob(b => res(b || file), "image/jpeg", 0.82));
+    } finally { URL.revokeObjectURL(url); }
+  }
+  F("fPhoto").addEventListener("change", async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    photoBlob = await shrink(f).catch(() => f);
+    $("phPrev").outerHTML = `<img id="phPrev" alt="Foto del producto" src="${URL.createObjectURL(photoBlob)}">`;
+  });
+
+  // ---------- IA ----------
+  let lastAI = null;
+  function renderAI(r){
+    const box = $("aiBox"); box.hidden = false;
+    const conf = {alta:"Seguro", media:"Bastante seguro", baja:"Poco seguro, revisa"}[r.confianza] || "";
+    box.innerHTML = `<div class="row"><b class="grow">${esc(r.nombre || "Producto")}</b>${conf ? `<span class="pill st-publicado">${esc(conf)}</span>` : ""}</div>
+      ${r.precioRapidoBs ? `<div class="num">Sugerido en Bolivia: <b>${bs(r.precioRapidoBs)}</b> rápido · <b>${bs(r.precioNormalBs || 0)}</b> normal</div>` : ""}
+      ${r.demanda ? `<div class="small">Demanda: <b>${esc(r.demanda)}</b>${r.mejorCanal ? " · Mejor canal: <b>" + esc(r.mejorCanal) + "</b>" : ""}</div>` : ""}
+      ${r.consejo ? `<div class="small">${esc(r.consejo)}</div>` : ""}
+      <div class="small muted">Son estimaciones de la IA según lo que conoce, no precios en vivo. Confírmalos con los enlaces de abajo antes de publicar.</div>`;
+  }
+
+  $("btnAI").onclick = async () => {
+    if (!sampleApi){ toast("La IA no está disponible aquí. Abre la página desde claude.ai."); return; }
+    const hasPhoto = !!photoBlob;
+    const txt = query();
+    if (!hasPhoto && !txt){ toast("Primero saca una foto o escribe el nombre"); return; }
+    const btn = $("btnAI"); btn.disabled = true; btn.textContent = "Analizando… (puede tardar un minuto)";
+    const prompt = `Eres experto en reventa de productos de cajas de devoluciones de Amazon en Bolivia (venta por Facebook Marketplace, WhatsApp y TikTok, ciudad: ${cfg.ciudad}).
+${hasPhoto ? "Mira la foto e identifica el producto exacto (marca, modelo). Lee etiquetas o código de barras si se ven." : ""}
+Datos que escribió el vendedor: nombre/descripción: "${txt}"; código: "${F("fCodigo").value}"; estado: "${ESTADO_TXT[F("fEstado").value]}".
+Tipo de cambio que usa el vendedor: ${n(cfg.tipoCambio)} Bs por 1 USD.
+Estima con tu conocimiento:
+- precio nuevo típico en Amazon USA (USD)
+- precio típico de usado en eBay (USD)
+- precio en bolivianos para vender RÁPIDO (en pocos días) y precio NORMAL en el mercado boliviano. Ten en cuenta que en Bolivia un importado de EEUU vale por lo general más que en eBay usado pero la gente busca ofertas en Marketplace; ajusta por el estado del producto. Redondea a múltiplos de 5.
+Escribe textos de venta en español boliviano natural, cortos y que vendan, mencionando "importado de EEUU" y el estado con honestidad. No inventes accesorios que no se ven.
+Responde SOLO con este JSON:
+{"nombre":"","marca":"","categoria":"","confianza":"alta|media|baja","precioNuevoUSD":0,"precioUsadoUSD":0,"precioRapidoBs":0,"precioNormalBs":0,"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"una frase práctica para venderlo rápido","titulo":"título para Marketplace (máx 70 caracteres)","descripcion":"descripción para Marketplace, 3 a 5 líneas","whatsapp":"mensaje para estado o grupo de WhatsApp con emojis","tiktok":"texto corto para video de TikTok con 4 a 6 hashtags"}`;
+    try{
+      const r = await sampleApi.json(prompt, hasPhoto ? {images:[photoBlob]} : {});
+      lastAI = r;
+      if (r.nombre) F("fNombre").value = r.nombre;
+      if (r.marca && !F("fMarca").value) F("fMarca").value = r.marca;
+      if (r.categoria && !F("fCat").value) F("fCat").value = r.categoria;
+      if (r.precioNuevoUSD) F("fUsd").value = r.precioNuevoUSD;
+      if (r.precioUsadoUSD) F("fUsdUsado").value = r.precioUsadoUSD;
+      if (r.precioRapidoBs) F("fRapido").value = r.precioRapidoBs;
+      if (r.precioNormalBs) F("fNormal").value = r.precioNormalBs;
+      if (!F("fPub").value && r.precioNormalBs) F("fPub").value = r.precioNormalBs;
+      const extra = (cfg.entrega ? "\n🚚 " + cfg.entrega : "") + (cfg.telefono ? "\n📲 " + cfg.telefono : "");
+      if (r.titulo) F("fTitulo").value = r.titulo;
+      if (r.descripcion) F("fDesc").value = r.descripcion + extra;
+      if (r.whatsapp) F("fWa").value = r.whatsapp + extra;
+      if (r.tiktok) F("fTk").value = r.tiktok;
+      renderAI(r); updatePriceBox(); updateLinks();
+      toast("Listo. Revisa y guarda.");
+    }catch(e){
+      const m = {not_granted:"No diste permiso para usar la IA en esta página.", rate_limited:"Muchas consultas seguidas. Espera un minuto.", image_rejected:"La foto no se pudo usar. Prueba con otra.", invalid_json:"La IA respondió raro. Toca de nuevo.", cancelled:""}[e?.code];
+      if (m !== "") toast(m || "No se pudo consultar a la IA. Intenta de nuevo.");
+    }finally{
+      btn.disabled = false; btn.textContent = "Identificar y poner precio con IA";
+    }
+  };
+
+  // ---------- Copiar textos ----------
+  const priceLine = () => { const p = n(F("fPub").value) || n(F("fNormal").value); return p ? "\n💰 " + bs(p) : ""; };
+  $("cpMk").onclick = () => copy(`${F("fTitulo").value || F("fNombre").value}${priceLine()}\n\n${F("fDesc").value}`);
+  $("cpWa").onclick = () => copy(`${F("fWa").value || F("fNombre").value}${F("fWa").value.includes("Bs") ? "" : priceLine()}`);
+  $("cpTk").onclick = () => copy(F("fTk").value || F("fNombre").value);
+
+  // ---------- Guardar / borrar ----------
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!F("fNombre").value.trim()){ toast("Ponle un nombre al producto"); F("fNombre").focus(); return; }
+    const btn = $("btnSave"); btn.disabled = true; btn.textContent = "Guardando…";
+    try{
+      let fotoUrl = photoUrl, fotoId = editing ? (items.find(x => x.id === editing)?.fotoId || "") : "";
+      if (photoBlob && assetsApi){
+        try { const up = await assetsApi.upload(photoBlob); fotoUrl = up.url; fotoId = up.id; }
+        catch { toast("La foto no se pudo guardar, el resto sí"); }
+      }
+      const prev = editing ? items.find(x => x.id === editing) : null;
+      const status = F("fStatus").value;
+      const data = {
+        nombre:F("fNombre").value.trim(), marca:F("fMarca").value.trim(), codigo:F("fCodigo").value.trim(),
+        estado:F("fEstado").value, cantidad:Math.max(1, Math.round(n(F("fCant").value)) || 1), categoria:F("fCat").value.trim(),
+        precioUsd:n(F("fUsd").value) || null, precioUsadoUsd:n(F("fUsdUsado").value) || null,
+        precioRapidoBs:n(F("fRapido").value) || null, precioNormalBs:n(F("fNormal").value) || null,
+        precioPublicadoBs:n(F("fPub").value) || null, status,
+        precioVendidoBs: status === "vendido" ? (n(F("fVendido").value) || null) : null,
+        canales:["chW","chM","chT"].filter(id => F(id).checked).map(id => F(id).value),
+        titulo:F("fTitulo").value, descripcion:F("fDesc").value, whatsapp:F("fWa").value, tiktok:F("fTk").value, notas:F("fNotas").value,
+        fotoUrl, fotoId, ia:lastAI || prev?.ia || null,
+        creado: prev?.creado || Date.now(),
+        vendidoEn: status === "vendido" ? (prev?.vendidoEn || Date.now()) : null
+      };
+      await store.saveItem(editing, data);
+      toast("Guardado");
+      show("inventario");
+    }catch(e){
+      toast(e?.code === "permission_denied" ? "No tienes permiso para guardar aquí" : "No se pudo guardar. Revisa tu conexión.");
+    }finally{ btn.disabled = false; btn.textContent = "Guardar"; }
+  });
+  $("btnDel").onclick = () => { $("delConfirm").hidden = false; };
+  $("btnDelNo").onclick = () => { $("delConfirm").hidden = true; };
+  $("btnDelYes").onclick = async () => {
+    const it = items.find(x => x.id === editing);
+    try{
+      await store.deleteItem(editing);
+      if (it?.fotoId && assetsApi) assetsApi.delete(it.fotoId).catch(() => {});
+      toast("Borrado"); show("inventario");
+    }catch{ toast("No se pudo borrar"); }
+  };
+
+  // ---------- Ajustes ----------
+  function fillCfg(){
+    $("cCosto").value = cfg.costoCaja; $("cTc").value = cfg.tipoCambio; $("cCiudad").value = cfg.ciudad;
+    $("cTel").value = cfg.telefono || ""; $("cEntrega").value = cfg.entrega || "";
+  }
+  $("cfgForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = {costoCaja:n($("cCosto").value) || 0, tipoCambio:n($("cTc").value) || DEFAULT_CFG.tipoCambio, ciudad:$("cCiudad").value, telefono:$("cTel").value.trim(), entrega:$("cEntrega").value.trim()};
+    try{ await store.saveCfg(data); toast("Ajustes guardados"); show("resumen"); }
+    catch{ toast("No se pudieron guardar los ajustes"); }
+  });
+
+  // ---------- Arranque ----------
+  function renderAll(){ renderSummary(); renderList(); }
+  store.subscribe(
+    (list) => { items = list; renderAll(); },
+    (c) => { cfg = {...DEFAULT_CFG, ...c}; fillCfg(); renderAll(); updatePriceBox(); }
+  );
+  updateLinks(); updatePriceBox();
+
+  (async () => {
+    const C = window.claude;
+    if (!C?.use){ showNotice("Estás viendo una copia sin conexión: los datos se guardan solo en este teléfono y la IA no está disponible."); return; }
+    const [db, sample, assets, downloads] = await Promise.all(["db","sample","assets","downloads"].map(k => C.use(k).catch(() => null)));
+    sampleApi = sample; assetsApi = assets; downloadsApi = downloads;
+    if (db) store.attachDb(db);
+    else showNotice("Inicia sesión en claude.ai para guardar el inventario en la nube. Por ahora se guarda solo en este teléfono.");
+    if (!sample) $("btnAI").hidden = true;
+  })();
+})();
+</script>
