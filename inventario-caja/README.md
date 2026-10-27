@@ -6,6 +6,7 @@ App web para inventariar y vender los productos de una caja de devoluciones de A
 - Dólar oficial BCB y de mercado (USDT), actualizable con datos del día
 - Enlaces para comparar: Amazon, eBay vendidos, Marketplace, Mercado Libre (Perú, Chile, Argentina), Google, TikTok
 - Textos listos para Marketplace, WhatsApp y TikTok
+- Carga masiva: elegir todas las fotos de una vez (un producto o varios por foto) y luego investigar los precios de todos
 - Resumen: cuánto llevas recuperado de lo que pagaste por la caja (1600 Bs)
 
 Versión publicada: https://claude.ai/artifact/7rpRAWtVSWHgTCE39vaJzJ

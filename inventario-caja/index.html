@@ -21,6 +21,7 @@
   --tape:#f0b429; --tape-ink:#231800; --accent:#6fb3e3;
   --ok:#6fd39a; --ok-bg:#16301f; --warn:#f3c26b; --warn-bg:#352708; --idle:#b5c0cc; --idle-bg:#24303c; --bad:#ff8a80; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
 .wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -146,7 +147,8 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 
   <!-- INVENTARIO -->
   <section id="v-inventario" class="view" hidden style="flex-direction:column;gap:14px">
-    <div class="row"><h2 class="grow">Inventario</h2><button class="primary" id="btnAdd2">+ Agregar</button></div>
+    <div class="row"><h2 class="grow">Inventario</h2><button id="btnBulk">Cargar muchas fotos</button><button class="primary" id="btnAdd2">+ Agregar</button></div>
+    <div class="row small"><span class="grow muted" id="pendInfo2"></span><button type="button" class="dark" id="btnInvAll" hidden>Investigar todos</button></div>
     <input id="q" type="search" placeholder="Buscar por nombre, marca o código">
     <div class="filters" id="filters">
       <button data-f="todos" aria-pressed="true">Todos</button>
@@ -252,6 +254,40 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     </form>
   </section>
 
+  <!-- CARGA MASIVA -->
+  <section id="v-lote" class="view" hidden style="flex-direction:column;gap:14px">
+    <div class="row"><h2 class="grow">Cargar muchas fotos</h2><button id="btnBack2">Volver</button></div>
+    <div class="card">
+      <h3>Cómo sacar las fotos</h3>
+      <ol class="tips small">
+        <li><b>Una foto por producto.</b> La IA identifica mejor el modelo y esa misma foto te sirve para el anuncio.</li>
+        <li>Que se lea la marca, el modelo o el código de barras. Si la caja tiene la etiqueta atrás, saca la foto de ese lado.</li>
+        <li>Buena luz, fondo liso, sin otros productos alrededor.</li>
+        <li>Para cosas chicas y baratas (cables, fundas, adornos) puedes juntar hasta 6 en una foto, separadas y con la etiqueta a la vista. Usa la opción "Varios productos por foto".</li>
+      </ol>
+    </div>
+    <div class="card">
+      <div class="row small">
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="radio" name="loteModo" value="uno" checked style="width:auto" id="mUno">Un producto por foto</label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="radio" name="loteModo" value="varios" style="width:auto" id="mVarios">Varios productos por foto</label>
+      </div>
+      <label for="loteEstado">Estado si no se nota en la foto
+        <select id="loteEstado"><option value="abierto">Nuevo, caja abierta</option><option value="nuevo">Nuevo sellado</option><option value="usado">Usado, buen estado</option><option value="detalle">Con detalle o falla</option></select></label>
+      <label for="lotePhotos" class="btn" style="flex-direction:row;color:var(--ink);font-size:1rem">Elegir fotos de la galería</label>
+      <input id="lotePhotos" type="file" accept="image/*" multiple hidden>
+      <button type="button" class="primary" id="btnLote">Subir e identificar</button>
+      <p class="small muted">Primero se identifica cada foto (unos segundos cada una). Después tocas "Investigar precios" y la app busca los precios en internet de todos, de a dos a la vez. Deja la pantalla abierta mientras trabaja: lo que termina queda guardado aunque la cierres.</p>
+    </div>
+    <div class="card">
+      <div class="notice" id="loteNotice" hidden></div>
+      <p class="small" id="pendInfo"></p>
+      <div class="row"><button type="button" class="dark grow" id="btnLoteAll">Investigar precios</button><button type="button" id="loteStop" hidden>Detener</button></div>
+      <div class="row"><span class="small num grow" id="loteCount"></span></div>
+      <div class="bar"><i id="loteBar"></i></div>
+      <div class="items" id="loteList"></div>
+    </div>
+  </section>
+
   <!-- AJUSTES -->
   <section id="v-ajustes" class="view" hidden style="flex-direction:column;gap:14px">
     <h2>Ajustes</h2>
@@ -355,7 +391,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     }
   }
   const units = (it) => Math.max(1, Math.round(n(it.cantidad) || 1));
-  const askPrice = (it) => n(it.precioPublicadoBs) || n(it.precioNormalBs) || n(it.precioRapidoBs);
+  const askPrice = (it) => n(it.precioPublicadoBs) || n(it.precioNormalBs) || n(it.precioRapidoBs) || (formulaPrices(n(it.precioUsd), it.estado)?.normal || 0);
 
   // Precio de referencia calculado sin IA: dólar × tipo de cambio × estado
   function formulaPrices(usd, estado){
@@ -376,6 +412,8 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     if (b.dataset.view === "editor") openEditor(null); else show(b.dataset.view);
   });
   $("btnAdd2").onclick = () => openEditor(null);
+  $("btnBulk").onclick = () => { renderPendingCount(); show("lote"); };
+  $("btnBack2").onclick = () => show("inventario");
   $("btnBack").onclick = () => show("inventario");
 
   // ---------- Resumen ----------
@@ -415,7 +453,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     b.innerHTML = `${it.fotoUrl ? `<img class="thumb" alt="" src="${esc(it.fotoUrl)}">` : `<div class="thumb">${initial}</div>`}
       <div style="min-width:0"><div class="nm">${esc(it.nombre || "Sin nombre")}</div>
       <div class="small muted">${esc(ESTADO_TXT[it.estado] || "")}${units(it) > 1 ? " · x" + units(it) : ""}</div>
-      <span class="pill st-${st}">${STATUS_TXT[st]}</span></div>
+      <span class="pill st-${st}">${STATUS_TXT[st]}</span> ${it.ia ? `<span class="pill ${(CONF[it.ia.confianza] || CONF.baja)[1]}">${(CONF[it.ia.confianza] || CONF.baja)[0].replace("Confianza ", "conf. ")}</span>` : (st !== "vendido" ? `<span class="small muted">sin investigar</span>` : "")}</div>
       <div class="pr">${price ? bs(price) : "<span class='small muted'>sin precio</span>"}</div>`;
     b.onclick = () => openEditor(it.id);
     return b;
@@ -614,25 +652,17 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   }
 
   $("btnStop").onclick = () => aiCtl?.abort();
-  $("btnAI").onclick = async () => {
-    if (!sampleApi){ toast("La IA no está disponible aquí. Abre la página desde claude.ai."); return; }
-    const hasPhoto = !!photoBlob;
-    const txt = query();
-    if (!hasPhoto && !txt){ toast("Primero saca una foto o escribe el nombre"); return; }
-    const web = await webReady();
-    $("webNotice").hidden = web.ok; if (!web.ok){ $("webNotice").textContent = web.why; return; }
-    const btn = $("btnAI"); btn.disabled = true; btn.textContent = "Investigando… (1 a 3 minutos)";
-    $("btnStop").hidden = false; $("aiProgress").innerHTML = ""; aiProgress(hasPhoto ? "Identificando el producto en la foto" : "Preparando la búsqueda");
-    aiCtl = new AbortController();
+
+  function researchPrompt({hasPhoto, nombre, codigo, estado, cantidad}){
     const rate = tc(), hoy = new Date().toLocaleDateString("es-BO");
-    const prompt = `Eres analista de precios para revendedores en Bolivia (ciudad: ${cfg.ciudad}). El producto viene de una caja de devoluciones de Amazon EEUU.
-${hasPhoto ? "1) Identifica el producto exacto en la foto (marca, modelo, variante). Lee etiquetas, texto y código de barras si se ven." : "1) El producto es el que describe el vendedor."}
-Datos del vendedor: nombre: "${txt}"; código: "${F("fCodigo").value}"; estado: "${ESTADO_TXT[F("fEstado").value]}"; cantidad: ${F("fCant").value || 1}.
+    return `Eres analista de precios para revendedores en Bolivia (ciudad: ${cfg.ciudad}). El producto viene de una caja de devoluciones de Amazon EEUU.
+${hasPhoto ? "1) Identifica el producto exacto en la foto (marca, modelo, variante). Lee etiquetas, texto y código de barras si se ven." : "1) El producto es el que describe el vendedor (ya fue identificado por foto)."}
+Datos del vendedor: nombre: "${nombre}"; código: "${codigo || ""}"; estado: "${ESTADO_TXT[estado] || estado}"; cantidad: ${cantidad || 1}.
 Dólar que usa el vendedor: ${rate} Bs por 1 USD (${cfg.tcModo === "oficial" ? "oficial BCB" : "mercado"}). Fecha de hoy: ${hoy}.
 
 2) INVESTIGA EN INTERNET con las herramientas. Sé eficiente: en tu PRIMERA ronda lanza a la vez 3 llamadas a buscar_web:
    a) precio nuevo en Amazon.com del modelo exacto, y precio de usados VENDIDOS en eBay;
-   b) precio en Bolivia: Facebook Marketplace Bolivia, tiendas bolivianas, grupos o TikTok ("<modelo> precio Bolivia", "<modelo> Santa Cruz" , etc.);
+   b) precio en Bolivia: Facebook Marketplace Bolivia, tiendas bolivianas, grupos o TikTok ("<modelo> precio Bolivia", "<modelo> ${cfg.ciudad}", etc.);
    c) precio en mercados parecidos: Mercado Libre Perú (.com.pe), Chile (.cl) o Argentina (.com.ar).
    Si hace falta, en la segunda ronda usa leer_pagina en 1 a 3 URLs para confirmar precios. No hagas más de 3 rondas de herramientas.
 
@@ -647,33 +677,193 @@ Dólar que usa el vendedor: ${rate} Bs por 1 USD (${cfg.tcModo === "oficial" ? "
 
 Al final responde SOLO con este JSON:
 {"nombre":"","marca":"","modelo":"","categoria":"","confianza":"alta|media|baja","motivoConfianza":"","amazonNuevoUSD":null,"ebayUsadoUSD":null,"comparables":[{"plataforma":"Amazon|eBay vendido|Marketplace|Mercado Libre|Tienda|TikTok|Otro","pais":"","estado":"nuevo|usado","precio":0,"moneda":"USD|BOB|PEN|CLP|ARS","precioBs":0,"url":""}],"sugerido":{"rapidoBs":null,"normalBs":null,"explicacion":""},"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"","titulo":"","descripcion":"","whatsapp":"","tiktok":""}`;
+  }
+  async function research(ctx, progress, signal, image){
+    const tools = await webTools(progress);
+    const r = await sampleApi.json(researchPrompt(ctx), {tools, signal, ...(image ? {images:[image]} : {})});
+    r.fecha = new Date().toLocaleDateString("es-BO"); r.tcUsado = tc().toFixed(2);
+    r.comparables = (r.comparables || []).filter(x => x && /^https?:\/\//.test(x.url || ""));   // sin enlace no cuenta
+    return r;
+  }
+  // Campos del producto que salen de la investigación
+  function aiFields(r, base){
+    const extra = (cfg.entrega ? "\n🚚 " + cfg.entrega : "") + (cfg.telefono ? "\n📲 " + cfg.telefono : "");
+    const f = {ia:r};
+    if (r.nombre) f.nombre = r.nombre;
+    if (r.marca || r.modelo) f.marca = [r.marca, r.modelo].filter(Boolean).join(" ");
+    if (r.categoria && !base.categoria) f.categoria = r.categoria;
+    if (r.amazonNuevoUSD) f.precioUsd = n(r.amazonNuevoUSD);
+    if (r.ebayUsadoUSD) f.precioUsadoUsd = n(r.ebayUsadoUSD);
+    if (r.sugerido?.rapidoBs) f.precioRapidoBs = n(r.sugerido.rapidoBs);
+    if (r.sugerido?.normalBs){ f.precioNormalBs = n(r.sugerido.normalBs); if (!n(base.precioPublicadoBs)) f.precioPublicadoBs = n(r.sugerido.normalBs); }
+    if (r.titulo) f.titulo = r.titulo;
+    if (r.descripcion) f.descripcion = r.descripcion + extra;
+    if (r.whatsapp) f.whatsapp = r.whatsapp + extra;
+    if (r.tiktok) f.tiktok = r.tiktok;
+    return f;
+  }
+  const AI_ERR = {not_granted:"Hace falta que permitas la IA y el buscador en esta página.", rate_limited:"Muchas consultas seguidas. Espera un minuto.", image_rejected:"La foto no se pudo usar. Prueba con otra.", invalid_json:"La respuesta llegó incompleta. Toca de nuevo.", tools_unavailable:"Esta vista no permite que la IA use el buscador.", images_unavailable:"Esta vista no puede mandar fotos a la IA.", cancelled:"Detenido"};
+
+  $("btnAI").onclick = async () => {
+    if (!sampleApi){ toast("La IA no está disponible aquí. Abre la página desde claude.ai."); return; }
+    const hasPhoto = !!photoBlob;
+    const txt = query();
+    if (!hasPhoto && !txt){ toast("Primero saca una foto o escribe el nombre"); return; }
+    const web = await webReady();
+    $("webNotice").hidden = web.ok; if (!web.ok){ $("webNotice").textContent = web.why; return; }
+    const btn = $("btnAI"); btn.disabled = true; btn.textContent = "Investigando… (1 a 3 minutos)";
+    $("btnStop").hidden = false; $("aiProgress").innerHTML = ""; aiProgress(hasPhoto ? "Identificando el producto en la foto" : "Preparando la búsqueda");
+    aiCtl = new AbortController();
     try{
-      const tools = await webTools(aiProgress);
-      const r = await sampleApi.json(prompt, {tools, signal:aiCtl.signal, ...(hasPhoto ? {images:[photoBlob]} : {})});
-      r.fecha = hoy; r.tcUsado = rate.toFixed(2);
-      r.comparables = (r.comparables || []).filter(x => x && /^https?:\/\//.test(x.url || ""));   // sin enlace no cuenta
+      const r = await research({hasPhoto, nombre:txt, codigo:F("fCodigo").value, estado:F("fEstado").value, cantidad:F("fCant").value}, aiProgress, aiCtl.signal, hasPhoto ? photoBlob : null);
       lastAI = r;
-      if (r.nombre) F("fNombre").value = r.nombre;
-      if (r.marca || r.modelo) F("fMarca").value = [r.marca, r.modelo].filter(Boolean).join(" ");
-      if (r.categoria && !F("fCat").value) F("fCat").value = r.categoria;
-      if (r.amazonNuevoUSD) F("fUsd").value = r.amazonNuevoUSD;
-      if (r.ebayUsadoUSD) F("fUsdUsado").value = r.ebayUsadoUSD;
-      if (r.sugerido?.rapidoBs) F("fRapido").value = r.sugerido.rapidoBs;
-      if (r.sugerido?.normalBs){ F("fNormal").value = r.sugerido.normalBs; if (!F("fPub").value) F("fPub").value = r.sugerido.normalBs; }
-      const extra = (cfg.entrega ? "\n🚚 " + cfg.entrega : "") + (cfg.telefono ? "\n📲 " + cfg.telefono : "");
-      if (r.titulo) F("fTitulo").value = r.titulo;
-      if (r.descripcion) F("fDesc").value = r.descripcion + extra;
-      if (r.whatsapp) F("fWa").value = r.whatsapp + extra;
-      if (r.tiktok) F("fTk").value = r.tiktok;
+      const f = aiFields(r, {categoria:F("fCat").value, precioPublicadoBs:F("fPub").value});
+      const map = {nombre:"fNombre", marca:"fMarca", categoria:"fCat", precioUsd:"fUsd", precioUsadoUsd:"fUsdUsado", precioRapidoBs:"fRapido", precioNormalBs:"fNormal", precioPublicadoBs:"fPub", titulo:"fTitulo", descripcion:"fDesc", whatsapp:"fWa", tiktok:"fTk"};
+      for (const [k, id] of Object.entries(map)) if (f[k] != null) F(id).value = f[k];
       renderAI(r); updatePriceBox(); updateLinks();
       toast("Investigación lista. Revisa y guarda.");
     }catch(e){
-      const m = {not_granted:"Hace falta que permitas la IA y el buscador en esta página.", rate_limited:"Muchas consultas seguidas. Espera un minuto.", image_rejected:"La foto no se pudo usar. Prueba con otra.", invalid_json:"La respuesta llegó incompleta. Toca de nuevo.", tools_unavailable:"Esta vista no permite que la IA use el buscador.", cancelled:"Investigación detenida"}[e?.code];
-      toast(m || "No se pudo completar la investigación. Intenta de nuevo.");
+      toast(AI_ERR[e?.code] || "No se pudo completar la investigación. Intenta de nuevo.");
     }finally{
       btn.disabled = false; btn.textContent = "Investigar precio en internet"; $("btnStop").hidden = true; aiCtl = null;
     }
   };
+
+  // ---------- Carga masiva ----------
+  let lote = null;   // {ctl, wake}
+  const sleep = (ms, signal) => new Promise((res, rej) => { const t = setTimeout(res, ms); signal?.addEventListener("abort", () => { clearTimeout(t); rej({code:"cancelled"}); }, {once:true}); });
+  function stripId(it){ const {id, ...rest} = it; return rest; }
+  function loteRow(label, thumbUrl){
+    const row = document.createElement("div"); row.className = "item"; row.style.cursor = "default";
+    row.innerHTML = `${thumbUrl ? `<img class="thumb" alt="" src="${esc(thumbUrl)}">` : `<div class="thumb">…</div>`}<div style="min-width:0"><div class="nm"></div><div class="small muted st"></div></div><div></div>`;
+    row.querySelector(".nm").textContent = label;
+    $("loteList").prepend(row);
+    return {set(t, name){ row.querySelector(".st").textContent = t; if (name) row.querySelector(".nm").textContent = name; }};
+  }
+  function loteStatus(done, total, what){
+    $("loteCount").textContent = total ? `${what}: ${done} de ${total}` : "";
+    $("loteBar").style.width = total ? (done / total * 100) + "%" : "0";
+  }
+  async function startLote(){
+    lote = {ctl:new AbortController(), wake:null};
+    try { lote.wake = await navigator.wakeLock?.request("screen"); } catch {}
+    $("loteStop").hidden = false; $("btnLote").disabled = true; $("btnLoteAll").disabled = true; $("btnInvAll").disabled = true;
+    return lote.ctl.signal;
+  }
+  function endLote(){
+    try { lote?.wake?.release(); } catch {}
+    lote = null;
+    $("loteStop").hidden = true; $("btnLote").disabled = false; $("btnLoteAll").disabled = false; $("btnInvAll").disabled = false;
+    renderPendingCount();
+  }
+  $("loteStop").onclick = () => lote?.ctl.abort();
+  // Corre tareas de a `k` a la vez
+  async function pool(list, k, fn, signal){
+    let i = 0;
+    await Promise.all(Array.from({length:Math.min(k, list.length)}, async () => {
+      while (i < list.length && !signal.aborted){ const idx = i++; await fn(list[idx], idx); }
+    }));
+  }
+
+  function idPrompt(modo, estadoDef){
+    return `Eres experto en identificar productos de cajas de devoluciones de Amazon EEUU. Mira la foto.
+${modo === "varios" ? "En la foto puede haber VARIOS productos distintos. Haz una lista con cada producto distinto que se vea (ignora cajas vacías, bolsas o fondo). Si hay unidades repetidas del mismo producto, ponlo una vez con su cantidad." : "En la foto hay UN producto principal (puede verse con su caja o accesorios). Identifica solo ese."}
+Para cada producto: lee marca, modelo, texto y código de barras (UPC/EAN/ASIN) si se ven. No adivines un modelo que no se lee: si no estás seguro pon el nombre genérico (ej. "Audífonos Bluetooth negros") y confianza "baja".
+Estado: deduce por la foto ("nuevo" si está sellado, "abierto" si la caja está abierta pero se ve nuevo, "usado", o "detalle" si se ve daño). Si no se puede saber usa "${estadoDef}".
+Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en español con marca y modelo","marca":"","modelo":"","categoria":"","codigo":"","estado":"nuevo|abierto|usado|detalle","cantidad":1,"confianza":"alta|media|baja","ubicacion":"dónde está en la foto, solo si hay varios"}]}`;
+  }
+
+  $("btnLote").onclick = async () => {
+    const files = [...($("lotePhotos").files || [])];
+    if (!files.length){ toast("Primero elige las fotos"); return; }
+    if (!sampleApi){ toast("La IA no está disponible aquí. Abre la página desde claude.ai."); return; }
+    const modo = document.querySelector('input[name="loteModo"]:checked')?.value || "uno";
+    const estadoDef = $("loteEstado").value;
+    const signal = await startLote();
+    let done = 0, creados = 0; loteStatus(0, files.length, "Fotos");
+    const base = Date.now();
+    try{
+      await pool(files, 3, async (file, idx) => {
+        const blob = await shrink(file).catch(() => file);
+        const row = loteRow(`Foto ${idx + 1}`, URL.createObjectURL(blob));
+        let fotoUrl = "", fotoId = "";
+        try{
+          row.set("Subiendo foto…");
+          if (assetsApi){ const up = await assetsApi.upload(blob); fotoUrl = up.url; fotoId = up.id; }
+          row.set("Identificando…");
+          let res;
+          try { res = await sampleApi.json(idPrompt(modo, estadoDef), {images:[blob], signal}); }
+          catch (e) { if (e?.code === "rate_limited"){ row.set("Esperando un minuto (límite de consultas)…"); await sleep(60000, signal); res = await sampleApi.json(idPrompt(modo, estadoDef), {images:[blob], signal}); } else throw e; }
+          const prods = (res?.productos || []).filter(p => p && p.nombre);
+          if (!prods.length) throw {code:"none"};
+          for (const [j, p] of prods.entries()){
+            await store.saveItem(null, {
+              nombre:String(p.nombre), marca:[p.marca, p.modelo].filter(Boolean).join(" "), codigo:String(p.codigo || ""), categoria:String(p.categoria || ""),
+              estado: ESTADO_TXT[p.estado] ? p.estado : estadoDef, cantidad: Math.max(1, Math.round(n(p.cantidad)) || 1),
+              status:"pendiente", canales:[], fotoUrl, fotoId, idConfianza:p.confianza || "", ubicacion: modo === "varios" ? String(p.ubicacion || "") : "",
+              notas: modo === "varios" && p.ubicacion ? "En la foto: " + p.ubicacion : "", ia:null,
+              creado: base + idx * 10 + j
+            });
+            creados++;
+          }
+          row.set(prods.length > 1 ? `${prods.length} productos agregados` : `Agregado · identificación ${prods[0].confianza || ""}`, prods.map(p => p.nombre).join(" · "));
+        }catch(e){
+          if (e?.code === "cancelled"){ row.set("Detenido"); return; }
+          // Igual se guarda con la foto para completarlo a mano
+          if (fotoUrl || !assetsApi){
+            await store.saveItem(null, {nombre:`Sin identificar (foto ${idx + 1})`, estado:estadoDef, cantidad:1, status:"pendiente", canales:[], fotoUrl, fotoId, ia:null, creado: base + idx * 10}).catch(() => {});
+            creados++;
+          }
+          row.set(AI_ERR[e?.code] ? AI_ERR[e.code] : "No se reconoció. Quedó en el inventario para completarlo a mano.");
+        }finally{ done++; loteStatus(done, files.length, "Fotos"); }
+      }, signal);
+      toast(signal.aborted ? "Carga detenida" : `Listo: ${creados} productos agregados`);
+    } finally { endLote(); $("lotePhotos").value = ""; updateLoteBtn(); }
+  };
+
+  async function investigarTodos(){
+    if (!sampleApi){ toast("La IA no está disponible aquí"); return; }
+    const web = await webReady(); if (!web.ok){ $("loteNotice").textContent = web.why; $("loteNotice").hidden = false; show("lote"); return; }
+    $("loteNotice").hidden = true;
+    const list = items.filter(it => !it.ia && (it.status || "pendiente") !== "vendido").map(it => ({...it}));
+    if (!list.length){ toast("Todos los productos ya están investigados"); return; }
+    show("lote");
+    const signal = await startLote();
+    let done = 0, ok = 0; loteStatus(0, list.length, "Investigados");
+    try{
+      await pool(list, 2, async (it) => {
+        const row = loteRow(it.nombre, it.fotoUrl);
+        try{
+          row.set("Buscando precios…");
+          const ctx = {hasPhoto:false, nombre:[it.nombre, it.marca].filter(Boolean).join(" — "), codigo:it.codigo, estado:it.estado, cantidad:it.cantidad};
+          const prog = (m) => row.set(m);
+          let r;
+          try { r = await research(ctx, prog, signal); }
+          catch (e) { if (e?.code === "rate_limited"){ row.set("Esperando un minuto (límite de consultas)…"); await sleep(60000, signal); r = await research(ctx, prog, signal); } else throw e; }
+          const cur = items.find(x => x.id === it.id) || it;
+          await store.saveItem(it.id, {...stripId(cur), ...aiFields(r, cur)});
+          ok++;
+          row.set(`${(CONF[r.confianza] || CONF.baja)[0]} · ${r.sugerido?.normalBs ? bs(r.sugerido.normalBs) : "sin precio suficiente"} · ${r.comparables.length} precios con enlace`);
+        }catch(e){
+          row.set(e?.code === "cancelled" ? "Detenido" : (AI_ERR[e?.code] || "Falló, puedes reintentarlo después"));
+        }finally{ done++; loteStatus(done, list.length, "Investigados"); }
+      }, signal);
+      toast(signal.aborted ? "Investigación detenida. Lo que ya terminó quedó guardado." : `Listo: ${ok} de ${list.length} investigados`);
+    } finally { endLote(); }
+  }
+  $("btnLoteAll").onclick = investigarTodos;
+  $("btnInvAll").onclick = investigarTodos;
+  function renderPendingCount(){
+    const c = items.filter(it => !it.ia && (it.status || "pendiente") !== "vendido").length;
+    $("pendInfo").textContent = c ? `${c} productos aún no tienen precios investigados.` : "Todos los productos tienen precios investigados.";
+    $("btnInvAll").hidden = !c; $("pendInfo2").textContent = c ? `${c} sin precios investigados` : ""; $("btnLoteAll").textContent = c ? `Investigar precios de ${c} productos` : "Nada pendiente de investigar";
+    $("btnLoteAll").disabled = !c || !!lote;
+  }
+  function updateLoteBtn(){
+    const k = $("lotePhotos").files?.length || 0;
+    $("btnLote").textContent = k ? `Subir e identificar ${k} fotos` : "Subir e identificar";
+  }
+  $("lotePhotos").addEventListener("change", updateLoteBtn);
 
   // Dólar de hoy: busca el oficial del BCB y el de mercado (USDT)
   $("btnTc").onclick = async () => {
@@ -762,7 +952,7 @@ Al final responde SOLO con este JSON:
   });
 
   // ---------- Arranque ----------
-  function renderAll(){ renderSummary(); renderList(); }
+  function renderAll(){ renderSummary(); renderList(); renderPendingCount(); }
   store.subscribe(
     (list) => { items = list; renderAll(); },
     (c) => { cfg = {...DEFAULT_CFG, ...c}; fillCfg(); renderAll(); updatePriceBox(); }
