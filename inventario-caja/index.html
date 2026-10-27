@@ -136,7 +136,7 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
     <div class="card">
       <h3>Cómo vender rápido</h3>
       <ol class="tips small">
-        <li>Saca foto y toca <b>Investigar precio en internet</b>: busca el modelo en Amazon, eBay, Bolivia y Mercado Libre, y te muestra cada precio con su enlace.</li>
+        <li>Saca foto y toca <b>Investigar precio en internet</b>: busca el modelo en Amazon, tiendas de Bolivia, Mercado Libre y sobre todo precios de <b>reventa</b> (eBay vendidos, Evisos, Clasificados iBolivia, Locanto), y te muestra cada precio con su enlace.</li>
         <li>Publica el mismo día en Marketplace, tu estado de WhatsApp y un video corto en TikTok.</li>
         <li>Usa el <b>precio rápido</b> si quieres vender en días, el <b>normal</b> si puedes esperar.</li>
         <li>Lo que no se vende en 7 días, bájalo 10–15% o arma un combo.</li>
@@ -555,6 +555,8 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       ["Mercado Libre Perú", `https://listado.mercadolibre.com.pe/${dash}`],
       ["Mercado Libre Chile", `https://listado.mercadolibre.cl/${dash}`],
       ["Mercado Libre Argentina", `https://listado.mercadolibre.com.ar/${dash}`],
+      ["Reventa Bolivia", `https://www.google.com/search?q=${encodeURIComponent(q + " (site:evisos.com.bo OR site:clasificados.ibolivia.net OR site:locanto.com.bo)")}`],
+      ["Mercado Libre usados", `https://listado.mercadolibre.com.pe/${dash}_ITEM*CONDITION_2230581`],
       ["Google Bolivia", `https://www.google.com/search?q=${encodeURIComponent(q + " precio Bolivia")}`],
       ["TikTok", `https://www.tiktok.com/search?q=${e}`]
     ];
@@ -649,11 +651,12 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   function renderAI(r){
     const box = $("aiBox"); box.hidden = false;
     const c = CONF[r.confianza] || CONF.baja;
-    const comps = (r.comparables || []).filter(x => x && (x.precio || x.precioBs));
-    const rows = comps.map(x => `<tr><td>${esc(x.plataforma || "")}${x.pais ? " · " + esc(x.pais) : ""}</td><td>${esc(x.estado || "")}</td><td class="num">${x.precio ? esc(x.precio) + " " + esc(x.moneda || "") : ""}</td><td class="num"><b>${x.precioBs ? bs(x.precioBs) : ""}</b></td><td>${linkOr(x.url, "ver")}</td></tr>`).join("");
+    const comps = (r.comparables || []).filter(x => x && (x.precio || x.precioBs)).sort((a, b) => (b.tipo === "reventa") - (a.tipo === "reventa"));
+    const rows = comps.map(x => `<tr><td>${x.tipo === "reventa" ? '<span class="pill st-vendido">Reventa</span> ' : ""}${esc(x.plataforma || "")}${x.pais ? " · " + esc(x.pais) : ""}</td><td>${esc(x.estado || "")}</td><td class="num">${x.precio ? esc(x.precio) + " " + esc(x.moneda || "") : ""}</td><td class="num"><b>${x.precioBs ? bs(x.precioBs) : ""}</b></td><td>${linkOr(x.url, "ver")}</td></tr>`).join("");
     box.innerHTML = `<div class="row"><b class="grow">${esc(r.nombre || "Producto")}</b><span class="pill ${c[1]}">${c[0]}</span></div>
       ${r.motivoConfianza ? `<div class="small">${esc(r.motivoConfianza)}</div>` : ""}
       ${r.sugerido?.rapidoBs ? `<div class="num">Precio sugerido: <b>${bs(r.sugerido.rapidoBs)}</b> para vender rápido · <b>${bs(r.sugerido.normalBs || 0)}</b> normal</div>` : `<div class="small"><b>No hubo datos suficientes para sugerir un precio.</b></div>`}
+      ${r.reventaBs?.mediana ? `<div class="small num">Reventa: ${n(r.reventaBs.cantidad) || ""} precios, de ${bs(n(r.reventaBs.min))} a ${bs(n(r.reventaBs.max))} (mediana ${bs(n(r.reventaBs.mediana))})</div>` : `<div class="small"><b>No se encontraron precios de reventa</b>; el precio sale de tiendas y Amazon.</div>`}
       ${r.sugerido?.explicacion ? `<div class="small">${esc(r.sugerido.explicacion)}</div>` : ""}
       ${rows ? `<div style="overflow-x:auto"><table class="small" style="border-collapse:collapse;width:100%;min-width:420px"><thead><tr style="text-align:left"><th>Dónde</th><th>Estado</th><th>Precio</th><th>En Bs</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}
       ${r.demanda ? `<div class="small">Demanda en Bolivia: <b>${esc(r.demanda)}</b>${r.mejorCanal ? " · Mejor canal: <b>" + esc(r.mejorCanal) + "</b>" : ""}</div>` : ""}
@@ -670,24 +673,27 @@ ${hasPhoto ? "1) Identifica el producto exacto en la foto (marca, modelo, varian
 Datos del vendedor: nombre: "${nombre}"; código: "${codigo || ""}"; estado: "${ESTADO_TXT[estado] || estado}"; cantidad: ${cantidad || 1}.
 Dólar que usa el vendedor: ${rate} Bs por 1 USD (${cfg.tcModo === "oficial" ? "oficial BCB" : "mercado"}). Fecha de hoy: ${hoy}.
 
-2) INVESTIGA EN INTERNET con las herramientas. Sé eficiente: en tu PRIMERA ronda lanza a la vez 3 llamadas a buscar_web:
+2) INVESTIGA EN INTERNET con las herramientas. Sé eficiente: en tu PRIMERA ronda lanza a la vez 4 llamadas a buscar_web:
    a) precio nuevo en Amazon.com del modelo exacto, y precio de usados VENDIDOS en eBay;
    b) precio en Bolivia, con búsquedas como "<modelo> precio Bs Bolivia", "<modelo> ${cfg.ciudad} Bolivia", "<marca> <tipo de producto> precio Bs Bolivia". Las tiendas bolivianas publican en BOB/Bs (ej. itienda-bolivia.com, tecnogamer.com.bo y otras .com.bo). Facebook Marketplace casi no aparece en buscadores: no lo inventes. Si no hay el modelo exacto en Bolivia, toma 1-2 productos MUY parecidos de tiendas bolivianas como referencia y márcalos con plataforma "Tienda (similar)";
    c) precio en mercados parecidos: Mercado Libre Perú (.com.pe), Chile (.cl) o Argentina (.com.ar).
+   d) PRECIOS DE REVENTA (segunda mano), SIEMPRE: busca usados o de ocasión con búsquedas como "site:evisos.com.bo <modelo>", "site:clasificados.ibolivia.net <modelo o tipo de producto>", "site:locanto.com.bo <modelo>", "<modelo> usado Mercado Libre", "<modelo> used sold eBay".
    Si hace falta, en la segunda ronda usa leer_pagina en 1 a 3 URLs para confirmar precios. No hagas más de 3 rondas de herramientas.
 
 3) REGLAS DE CALIDAD:
    - Solo usa precios que viste en los resultados, cada uno con su URL. NUNCA inventes precios ni URLs. Si no encontraste algo, déjalo en null.
    - Descarta resultados de otro modelo, accesorios o lotes. Indica si el anuncio es nuevo o usado.
+   - Marca cada precio con "tipo": "reventa" (usado, segunda mano, ocasión, eBay vendido, clasificados) o "nuevo" (tienda o Amazon nuevo).
+   - LA REVENTA MANDA: si hay precios de reventa del mismo modelo (o muy parecido), el precio sugerido se basa en ellos: "normal" ≈ mediana de reventa (ajustada hacia arriba si el tuyo está sellado o casi nuevo, hasta el precio nuevo de tienda boliviana como máximo), "rápido" ≈ el más bajo de los de reventa. Solo si NO hay reventa usa la regla de porcentajes de abajo y dilo en "explicacion".
    - Las tiendas bolivianas venden NUEVO con garantía: su precio es un techo. Un producto de caja de devoluciones se vende normalmente entre 55% y 80% de ese precio según el estado.
    - Convierte a Bs: USD × ${rate}. Para soles, pesos chilenos o argentinos usa la tasa de cambio actual que encuentres o tu mejor dato y dilo en "explicacion".
    - Precio sugerido: el "normal" debe estar cerca de la mediana de los anuncios comparables en Bolivia (si existen) o, si no, del precio en Amazon en Bs ajustado por estado (nuevo sellado ~75-85%, caja abierta ~65-75%, usado ~50-65%, con falla ~30-45%). El "rápido" es 15-25% menos que el normal y nunca menor al precio de usado vendido en eBay en Bs. Redondea a múltiplos de 5 Bs.
-   - confianza "alta": modelo identificado con seguridad y 3 o más precios comparables con URL, al menos 1 de Bolivia o de eBay vendidos. "media": modelo seguro y 1-2 comparables, o solo precio de Amazon. "baja": modelo dudoso o sin precios. Explica el motivo en una frase.
+   - confianza "alta": modelo identificado con seguridad y 3 o más precios comparables con URL, al menos 1 de REVENTA y al menos 1 de Bolivia o de eBay vendidos. "media": modelo seguro y 1-2 comparables, o solo precio de Amazon. "baja": modelo dudoso o sin precios. Explica el motivo en una frase.
 
 4) Escribe textos de venta en español boliviano natural, honestos con el estado, mencionando "original de EEUU". No inventes accesorios.
 
 Al final responde SOLO con este JSON:
-{"nombre":"","marca":"","modelo":"","categoria":"","confianza":"alta|media|baja","motivoConfianza":"","amazonNuevoUSD":null,"ebayUsadoUSD":null,"comparables":[{"plataforma":"Amazon|eBay vendido|Marketplace|Mercado Libre|Tienda|TikTok|Otro","pais":"","estado":"nuevo|usado","precio":0,"moneda":"USD|BOB|PEN|CLP|ARS","precioBs":0,"url":""}],"sugerido":{"rapidoBs":null,"normalBs":null,"explicacion":""},"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"","titulo":"","descripcion":"","whatsapp":"","tiktok":""}`;
+{"nombre":"","marca":"","modelo":"","categoria":"","confianza":"alta|media|baja","motivoConfianza":"","amazonNuevoUSD":null,"ebayUsadoUSD":null,"comparables":[{"plataforma":"Amazon|eBay vendido|Mercado Libre|Tienda|Tienda (similar)|Clasificados|Otro","tipo":"reventa|nuevo","pais":"","estado":"nuevo|usado","precio":0,"moneda":"USD|BOB|PEN|CLP|ARS","precioBs":0,"url":""}],"reventaBs":{"min":null,"mediana":null,"max":null,"cantidad":0},"sugerido":{"rapidoBs":null,"normalBs":null,"explicacion":"","basadoEnReventa":false},"demanda":"alta|media|baja","mejorCanal":"Marketplace|WhatsApp|TikTok","consejo":"","titulo":"","descripcion":"","whatsapp":"","tiktok":""}`;
   }
   async function research(ctx, progress, signal, image){
     const tools = await webTools(progress);
@@ -854,7 +860,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en espa�
           const cur = items.find(x => x.id === it.id) || it;
           await store.saveItem(it.id, {...stripId(cur), ...aiFields(r, cur)});
           ok++;
-          row.set(`${(CONF[r.confianza] || CONF.baja)[0]} · ${r.sugerido?.normalBs ? bs(r.sugerido.normalBs) : "sin precio suficiente"} · ${r.comparables.length} precios con enlace`);
+          row.set(`${(CONF[r.confianza] || CONF.baja)[0]} · ${r.sugerido?.normalBs ? bs(r.sugerido.normalBs) : "sin precio suficiente"} · ${r.comparables.length} precios con enlace${r.comparables.some(x => x.tipo === "reventa") ? " (incluye reventa)" : " (sin reventa)"}`);
         }catch(e){
           row.set(e?.code === "cancelled" ? "Detenido" : (AI_ERR[e?.code] || "Falló, puedes reintentarlo después"));
         }finally{ done++; loteStatus(done, list.length, "Investigados"); }
