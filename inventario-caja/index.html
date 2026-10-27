@@ -583,9 +583,17 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
   // La IA busca en la web con el conector de búsqueda; los precios salen de anuncios reales, con enlace.
   let lastAI = null, aiCtl = null;
   const FALLBACK_SCHEMA = {
-    web_search: {type:"object", properties:{objective:{type:"string", description:"Qué se busca, en lenguaje natural"}, search_queries:{type:"array", items:{type:"string"}, description:"1 a 4 búsquedas cortas"}}, required:["objective"]},
+    web_search: {type:"object", properties:{objective:{type:"string", description:"Qué se busca, en lenguaje natural"}, search_queries:{type:"array", items:{type:"string"}, description:"2-3 búsquedas de 3 a 6 palabras, sin comillas; se permite site:dominio.com"}}, required:["objective","search_queries"]},
     web_fetch: {type:"object", properties:{urls:{type:"array", items:{type:"string"}}, objective:{type:"string"}}, required:["urls"]}
   };
+  const WEB_SESSION = "caja-" + Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
+  // Deja solo lo útil de cada resultado: título, enlace, fecha y fragmentos recortados
+  function compact(payload){
+    const res = payload && Array.isArray(payload.results) ? payload.results : null;
+    if (!res) return clip(payload, 14000);
+    return clip(res.slice(0, 10).map(r => ({url:r.url, titulo:r.title, fecha:r.publish_date || undefined,
+      texto: clip((Array.isArray(r.excerpts) ? r.excerpts.join(" … ") : String(r.excerpts || r.full_content || "")).replace(/\s+/g, " "), 1300)})), 15000);
+  }
   let schemaCache = null;
 
   async function webReady(){
@@ -616,8 +624,10 @@ ol.tips{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
       const what = Array.isArray(input.search_queries) ? input.search_queries.join(" · ") : (input.objective || (Array.isArray(input.urls) ? input.urls.join(", ") : JSON.stringify(input)));
       progress(`${label}: ${String(what).slice(0, 140)}`);
       try {
-        const r = await mcpApi.callTool(WEB, tool, input, {signal:ctx.signal});
-        return clip(r?.payload ?? r?.content?.map(b => b.text || "").join("\n") ?? "", 14000);
+        const args = {...input, session_id:WEB_SESSION}; delete args.model_name;
+        if (tool === "web_search" && !Array.isArray(args.search_queries)) args.search_queries = [String(args.objective || "").slice(0, 60)];
+        const r = await mcpApi.callTool(WEB, tool, args, {signal:ctx.signal});
+        return compact(r?.payload ?? r?.content?.map(b => b.text || "").join("\n") ?? "");
       } catch (e) {
         if (e?.code === "tool_error" || e?.code === "bad_request") throw new Error((e.message || "argumentos inválidos") + ". Revisa los argumentos según el esquema y reintenta.");
         throw new Error(e?.message || "La búsqueda falló");
@@ -662,13 +672,14 @@ Dólar que usa el vendedor: ${rate} Bs por 1 USD (${cfg.tcModo === "oficial" ? "
 
 2) INVESTIGA EN INTERNET con las herramientas. Sé eficiente: en tu PRIMERA ronda lanza a la vez 3 llamadas a buscar_web:
    a) precio nuevo en Amazon.com del modelo exacto, y precio de usados VENDIDOS en eBay;
-   b) precio en Bolivia: Facebook Marketplace Bolivia, tiendas bolivianas, grupos o TikTok ("<modelo> precio Bolivia", "<modelo> ${cfg.ciudad}", etc.);
+   b) precio en Bolivia, con búsquedas como "<modelo> precio Bs Bolivia", "<modelo> ${cfg.ciudad} Bolivia", "<marca> <tipo de producto> precio Bs Bolivia". Las tiendas bolivianas publican en BOB/Bs (ej. itienda-bolivia.com, tecnogamer.com.bo y otras .com.bo). Facebook Marketplace casi no aparece en buscadores: no lo inventes. Si no hay el modelo exacto en Bolivia, toma 1-2 productos MUY parecidos de tiendas bolivianas como referencia y márcalos con plataforma "Tienda (similar)";
    c) precio en mercados parecidos: Mercado Libre Perú (.com.pe), Chile (.cl) o Argentina (.com.ar).
    Si hace falta, en la segunda ronda usa leer_pagina en 1 a 3 URLs para confirmar precios. No hagas más de 3 rondas de herramientas.
 
 3) REGLAS DE CALIDAD:
    - Solo usa precios que viste en los resultados, cada uno con su URL. NUNCA inventes precios ni URLs. Si no encontraste algo, déjalo en null.
    - Descarta resultados de otro modelo, accesorios o lotes. Indica si el anuncio es nuevo o usado.
+   - Las tiendas bolivianas venden NUEVO con garantía: su precio es un techo. Un producto de caja de devoluciones se vende normalmente entre 55% y 80% de ese precio según el estado.
    - Convierte a Bs: USD × ${rate}. Para soles, pesos chilenos o argentinos usa la tasa de cambio actual que encuentres o tu mejor dato y dilo en "explicacion".
    - Precio sugerido: el "normal" debe estar cerca de la mediana de los anuncios comparables en Bolivia (si existen) o, si no, del precio en Amazon en Bs ajustado por estado (nuevo sellado ~75-85%, caja abierta ~65-75%, usado ~50-65%, con falla ~30-45%). El "rápido" es 15-25% menos que el normal y nunca menor al precio de usado vendido en eBay en Bs. Redondea a múltiplos de 5 Bs.
    - confianza "alta": modelo identificado con seguridad y 3 o más precios comparables con URL, al menos 1 de Bolivia o de eBay vendidos. "media": modelo seguro y 1-2 comparables, o solo precio de Amazon. "baja": modelo dudoso o sin precios. Explica el motivo en una frase.
@@ -873,7 +884,7 @@ Responde SOLO con JSON: {"productos":[{"nombre":"nombre comercial claro en espa�
     try{
       const tools = await webTools(() => {});
       const hoy = new Date().toLocaleDateString("es-BO");
-      const r = await sampleApi.json(`Hoy es ${hoy}. Busca en internet, en UNA sola ronda con 2 llamadas a buscar_web a la vez: (1) el tipo de cambio oficial del dólar publicado hoy por el Banco Central de Bolivia (bcb.gob.bo); (2) la cotización actual del dólar USDT/BOB en Bolivia (Binance P2P o un monitor cambiario). Usa solo números que veas en los resultados. Responde SOLO con JSON: {"oficial":0,"mercado":0,"fecha":"dd/mm/aaaa","fuentes":"nombre de los sitios"} y pon null en lo que no encuentres.`, {tools});
+      const r = await sampleApi.json(`Hoy es ${hoy}. Busca en internet, en UNA sola ronda con 2 llamadas a buscar_web a la vez: (1) el tipo de cambio oficial del dólar publicado hoy por el Banco Central de Bolivia (bcb.gob.bo); (2) la cotización actual del dólar USDT/BOB en Bolivia (Binance P2P o un monitor cambiario). Usa solo números que veas en los resultados. Usa búsquedas de 3 a 6 palabras sin comillas. Responde SOLO con JSON: {"oficial":0,"mercado":0,"fecha":"dd/mm/aaaa","fuentes":"nombre de los sitios"} y pon null en lo que no encuentres.`, {tools});
       const of = n(r.oficial), mk = n(r.mercado);
       if (!(of > 5 && of < 40) && !(mk > 5 && mk < 40)) throw new Error("sin datos");
       const data = {...cfg, tcOficial: of > 5 && of < 40 ? of : cfg.tcOficial, tcMercado: mk > 5 && mk < 40 ? mk : cfg.tcMercado, tcFecha: r.fecha || hoy, tcFuente: r.fuentes || "búsqueda web"};
